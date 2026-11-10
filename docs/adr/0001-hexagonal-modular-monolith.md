@@ -10,3 +10,5 @@ One deployable. Layers `bootstrap > adapters > application > domain`, enforced b
 
 ## Consequences
 Domain tests run in milliseconds; adapters (DB, storage, auth) are swappable; CI fails on layering violations.
+
+Amended by ADR 0005: "simple to self-host" is no longer a goal.

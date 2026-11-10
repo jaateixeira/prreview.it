@@ -6,6 +6,8 @@ Education (students reviewing students) is the first *preset*, not a baked-in as
 
 Stack: Python · FastAPI · Jinja2 · HTMX · server-rendered, no SPA.
 
+Business context and founder decisions: [`docs/business/`](business/README.md). Hosted-first and Debian-only: [ADR 0005](adr/0005-hosted-first-debian-only.md).
+
 ---
 
 ## 1. Principles
@@ -81,7 +83,7 @@ This covers open, single-blind in **either** direction, and double-blind, with p
 
 A `Submission` has ordered `Revision`s. `ReviewRound n` targets a specific revision; reviewers in round 2 see the previous reviews, the author's response and a diff/changes summary (plugin-provided where the artifact type can diff). Rounds are unbounded (1, 2, 3, …). Annotations are pinned to a revision, so they never drift.
 
-### 2.4 Academic papers (primary use case)
+### 2.4 Academic papers (year-2 preset)
 
 A `Space` can be configured as a venue (conference track or journal). That adds, as optional features rather than core assumptions:
 
@@ -106,8 +108,8 @@ Roles are data (named permission sets), not enum values in code. Labels come fro
 ### 2.6 Multi-tenancy and hosting
 
 - `Organization` is the tenant. Every tenant-owned row carries `org_id`, enforced in the repository layer and tested (cross-tenant access tests are mandatory).
-- **Self-hosted mode:** single organization, no billing. **Hosted mode:** many organizations, freemium.
-- A `Plan`/`Entitlements` port decides limits (reviews per month, storage, active spaces, plugins). The domain asks "is this allowed?", never "which plan?". Billing (Stripe etc.) is an adapter, off by default.
+- **Hosted mode is the product:** many organizations, free tier with quotas. **Self-hosted mode:** single organization, no billing; expert-only and unsupported (Debian Linux, PostgreSQL; ADR 0005).
+- An `Entitlements` port decides limits. Free tier: 50 MB of storage and 100 shares per user; the organizer pays above that; students and reviewers never pay. The domain asks "is this allowed?", never "which plan?". Billing (Stripe etc.) is an adapter, off by default.
 - Per-tenant branding, per-tenant retention and data export/deletion for GDPR.
 
 ---
@@ -143,7 +145,7 @@ Dependency rule: `adapters → application → domain`. Never the reverse.
 | Concern | Choice | Why |
 |---|---|---|
 | Packaging/env | `uv` | Fast, reproducible lockfile |
-| DB | SQLAlchemy 2.0 + Alembic; SQLite (WAL) for dev/small, PostgreSQL for prod | Same code both ways, easy self-hosting |
+| DB | SQLAlchemy 2.0 + Alembic; PostgreSQL is the only supported production database; SQLite for local development and fast tests | Easy contributor setup, one production stack |
 | Frontend | Jinja2 + HTMX + a little Alpine.js; hand-written CSS with design tokens (no Node build) | Lightning fast, zero JS toolchain for contributors |
 | PDF | PDF.js for rendering; annotation layer in our own small JS module | Mature, open source |
 | Text annotation | Server stores selectors; small JS captures the selection | Keeps JS minimal |
@@ -152,6 +154,7 @@ Dependency rule: `adapters → application → domain`. Never the reverse.
 | i18n | gettext/Babel from the start (EN + FI) | Cheap now, painful to retrofit |
 | Quality | ruff, pyright (strict on `domain`), pre-commit, import-linter | |
 | CI | GitHub Actions: lint → unit → integration → acceptance, coverage gate | |
+| Deployment | Debian Linux (stable) only; no container image, no installer | Hosted-first (ADR 0005) |
 
 **Plugin extension points (hookspecs)**
 `ArtifactType` (ingest, render, annotation selector) · `AllocationStrategy` · `CriterionType` · `Exporter` · `Notifier` · `AuthProvider`.
@@ -200,16 +203,18 @@ Every milestone: small PRs, tests first, CI green, ADR for each notable decision
 
 | # | Milestone | Deliverables | Exit criteria |
 |---|---|---|---|
-| **M0** | **Foundations & walking skeleton** | Repo, `pyproject`, ruff/pyright/import-linter, pre-commit, CI, Dockerfile, CLAUDE.md, ADR template, design tokens, base layout, "hello" page via HTMX, one Playwright test in CI, LICENSE/CONTRIBUTING/CoC | Empty app deploys; E2E test runs in CI; layering rule enforced |
+| **M0** | **Foundations & walking skeleton** | Repo, `pyproject`, ruff/pyright/import-linter, pre-commit, CI, CLAUDE.md, ADR template, design tokens, base layout, "hello" page via HTMX, one Playwright test in CI, LICENSE/CONTRIBUTING/CoC | Empty app deploys; E2E test runs in CI; layering rule enforced |
 | **M1** | Organizations, identity, spaces, groups | Org (tenant) + isolation tests, sign-up/login, data-driven roles, space create/join (invite), groups CRUD, preset mechanism with Education preset | Authorisation matrix and cross-tenant tests pass |
-| **M2** | Calls, submissions & revisions | Call CRUD, `ArtifactType` plugin API, built-in **text** and **PDF** types, versioned artifacts, revisions, Party-authored submissions | Individual and group submissions work E2E |
+| **M2** | Calls, submissions & revisions | Call CRUD, `ArtifactType` plugin API, built-in **text** and **PDF** types, versioned artifacts, revisions, Party-authored submissions, **review by link** (share a call or a submission; minimal sign-up) | Individual and group submissions work E2E |
 | **M3** | Rubrics | Criteria builder, scale types, reusable rubrics | Rubric renders in review form |
-| **M4** | Review rounds & allocation | Multi-round config, 1:n / n:n allocation (random, round-robin, manual, COI-aware), property tests | Allocation invariants hold for random inputs |
+| **M4** | Review rounds & allocation | Multi-round config, 1:n / n:n allocation (random, round-robin, manual), property tests | Allocation invariants hold for random inputs |
 | **M5** | Review workspace | Criteria form with autosave, text annotations, PDF annotations, group-shared review editing | Acceptance scenarios 1 and 2 pass |
 | **M6** | Anonymity, release & feedback | Directional `AnonymityPolicy` + `IdentityMask`, release rules, "feedback received", author responses, later-round view, notifications, leak tests | Scenario 3 passes; leak tests pass |
 | **M7** | Polish & v0.1 | Performance pass, a11y audit, EN/FI strings, docs, seed demo data, organizer export (CSV) | Budgets met; **v0.1.0 tagged** |
+| **M8** | Hosted service | Multi-tenant hosted mode, `Entitlements` port with storage and share quotas, usage display and upgrade prompt, payment adapter, abuse controls (rate limits, upload checks, takedown), terms and privacy pages | A stranger signs up and runs a round unaided; quotas enforced and tested |
+| **M9** | Moodle via LTI 1.3 | LTI 1.3 launch, roster and grade return, sign-in from the LMS | A Moodle course launches a call and receives grades |
 
-**After v0.1:** stabilise plugin API (v0.2) → Academic-venue preset (bidding, COI, rebuttal, decisions) → multi-tenant hosted mode + entitlements/billing adapter → code-review plugin (line comments, Git import) → OIDC/Shibboleth/SAML + LTI 1.3 → external-reference artifacts (Jira, Confluence, Figma, Blender, video) → review-of-review → analytics → live group co-editing (SSE) → AI-assisted feedback hints (opt-in).
+**After M9 (year 2):** stabilise plugin API (v0.2) and a first non-document plugin → Academic-venue preset (bidding, COI, rebuttal, decisions) → OIDC/Shibboleth/SAML → code-review plugin (line comments, Git import) → external-reference artifacts (Jira, Confluence, Figma, Blender, video) → review-of-review → analytics → live group co-editing (SSE) → AI-assisted feedback hints (opt-in).
 
 ---
 
@@ -245,11 +250,11 @@ Every milestone: small PRs, tests first, CI green, ADR for each notable decision
 ## 10. Assumptions to confirm
 
 1. Name/package: `previewit`.
-2. SQLite for dev, PostgreSQL for production.
+2. SQLite for local development and tests only; PostgreSQL is the only supported production database.
 3. Local accounts in v0.1; institutional login (OIDC/SAML) is the first post-v0.1 integration.
 4. English + Finnish UI; vocabulary overridable per organization.
 5. Group review = one shared review editable by any member (no live co-editing yet).
 6. Default anonymity = reviewer hidden from author, configurable per round and direction.
-7. Target scale: a few thousand users per organization on one small server; hosted mode adds many tenants.
+7. Target scale: the hosted service with many tenants. Self-hosting is not sized for small servers.
 8. Plain CSS with design tokens in M0 (no Tailwind/Node); revisit if CSS grows unwieldy.
-9. Self-hosted = single organization; hosted multi-tenant and billing arrive after v0.1, but `org_id` is in the schema from M1.
+9. Hosted multi-tenant, quotas and billing arrive in M8, but `org_id` is in the schema from M1. Self-hosted = single organization, Debian only, unsupported.
