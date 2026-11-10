@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Better work, <em>reviewed by peers.</em></h1>
+  <p class="lead">Fast, friendly peer review for classrooms, journals, engineering teams
+    and anyone who wants honest feedback on their work.</p>
+  <div class="card">
+    <h2>Server check</h2>
+    <p>Hypermedia in action: this button swaps a fragment from the server, no page reload.</p>
+    <button class="btn" hx-get="/fragments/status" hx-target="#status" hx-swap="innerHTML">
+      Check status
+    </button>
+    <div id="status" class="status" aria-live="polite"></div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,40 @@
+/* Design tokens: the only place raw colours, spacing and type sizes are defined. */
+:root {
+  --color-bg: #f6f4ee;
+  --color-surface: #ffffff;
+  --color-ink: #1b1b2f;
+  --color-ink-soft: #5b5b73;
+  --color-accent: #4b3df2;
+  --color-accent-ink: #ffffff;
+  --color-accent-soft: #e9e7ff;
+  --color-ok: #0f8a5f;
+  --color-ok-soft: #dcf5ea;
+  --color-focus: #ff9f1c;
+
+  --radius-s: 8px;
+  --radius-m: 16px;
+  --radius-l: 28px;
+
+  --space-1: 4px; --space-2: 8px; --space-3: 16px;
+  --space-4: 24px; --space-5: 40px; --space-6: 72px;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --text-body: 1.0625rem;
+  --text-lead: 1.375rem;
+  --text-h1: clamp(2.5rem, 6vw, 4.5rem);
+  --shadow-card: 0 1px 2px rgb(27 27 47 / 6%), 0 12px 32px rgb(27 27 47 / 8%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #12121f;
+    --color-surface: #1c1c30;
+    --color-ink: #f2f1fa;
+    --color-ink-soft: #a9a9c4;
+    --color-accent: #8a80ff;
+    --color-accent-ink: #12121f;
+    --color-accent-soft: #2a2850;
+    --color-ok: #52d9a3;
+    --color-ok-soft: #12382b;
+  }
+}

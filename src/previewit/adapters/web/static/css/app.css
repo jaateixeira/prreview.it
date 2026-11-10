@@ -1,0 +1,43 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--color-bg); color: var(--color-ink);
+  font: var(--text-body)/1.55 var(--font-sans);
+}
+:focus-visible { outline: 3px solid var(--color-focus); outline-offset: 2px; }
+
+.skip-link { position: absolute; left: -999px; }
+.skip-link:focus { left: var(--space-3); top: var(--space-3); background: var(--color-surface);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-s); z-index: 10; }
+
+.topbar { display: flex; justify-content: space-between; align-items: center;
+  padding: var(--space-3) var(--space-4); max-width: 1120px; margin: 0 auto; }
+.brand { display: inline-flex; align-items: center; gap: var(--space-2);
+  font-weight: 800; font-size: 1.25rem; color: var(--color-ink); text-decoration: none; }
+.brand-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--color-accent); }
+
+main { max-width: 1120px; margin: 0 auto; padding: var(--space-4); }
+.hero { padding: var(--space-5) 0 var(--space-6); }
+.hero h1 { font-size: var(--text-h1); line-height: 1.02; letter-spacing: -0.03em;
+  font-weight: 850; margin: 0 0 var(--space-3); max-width: 14ch; }
+.hero h1 em { font-style: normal; color: var(--color-accent); }
+.lead { font-size: var(--text-lead); color: var(--color-ink-soft); max-width: 36em;
+  margin: 0 0 var(--space-5); }
+
+.card { background: var(--color-surface); border-radius: var(--radius-l);
+  padding: var(--space-4); box-shadow: var(--shadow-card); max-width: 520px; }
+.card h2 { margin: 0 0 var(--space-2); font-size: 1.25rem; }
+
+.btn { appearance: none; border: 0; cursor: pointer; font: inherit; font-weight: 700;
+  background: var(--color-accent); color: var(--color-accent-ink);
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-m);
+  transition: transform .08s ease, filter .15s ease; }
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: scale(.97); }
+
+.status { margin-top: var(--space-3); min-height: 2em; }
+.pill { display: inline-block; padding: var(--space-1) var(--space-3);
+  border-radius: 999px; font-weight: 700; font-size: .9rem; }
+.pill-ok { background: var(--color-ok-soft); color: var(--color-ok); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

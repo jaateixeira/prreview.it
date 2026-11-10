@@ -1,0 +1,66 @@
+[project]
+name = "previewit"
+version = "0.0.1"
+description = "Fast, friendly, open-source peer review for any organization."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Previewit contributors" }]
+keywords = ["peer review", "education", "htmx", "fastapi"]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "jinja2>=3.1",
+    "uvicorn[standard]>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-playwright>=0.5",
+    "httpx>=0.27",
+    "hypothesis>=6",
+    "ruff>=0.6",
+    "pyright>=1.1.380",
+    "import-linter>=2.0",
+    "pytest-cov>=7.1.0",
+    "pytest-html>=4.2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/previewit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["acceptance: browser-based end-to-end tests (Playwright)"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "standard"
+strict = ["src/previewit/domain"]
+
+[tool.importlinter]
+root_package = "previewit"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Hexagonal layering: adapters -> application -> domain"
+type = "layers"
+layers = ["previewit.bootstrap", "previewit.adapters", "previewit.application", "previewit.domain"]
+
+[[tool.importlinter.contracts]]
+name = "Domain is pure (no framework imports)"
+type = "forbidden"
+source_modules = ["previewit.domain", "previewit.application"]
+forbidden_modules = ["fastapi", "starlette", "jinja2", "sqlalchemy", "uvicorn"]
