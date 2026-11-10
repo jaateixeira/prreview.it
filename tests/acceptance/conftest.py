@@ -26,6 +26,8 @@ def base_url():
         if server.started:
             break
         time.sleep(0.05)
+    else:
+        pytest.fail("test server did not start within 5 seconds")
     yield f"http://127.0.0.1:{port}"
     server.should_exit = True
     thread.join(timeout=5)
