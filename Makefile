@@ -1,8 +1,10 @@
 PYTEST_ARGS ?=
-.PHONY: report install check lint types layers test unit integration acceptance run
+.PHONY: report install hooks check lint types layers test unit integration acceptance run
 install:
 	uv sync
 	uv run playwright install chromium
+hooks:
+	uvx pre-commit install
 check: lint types layers test
 lint:
 	uv run ruff check . && uv run ruff format --check .

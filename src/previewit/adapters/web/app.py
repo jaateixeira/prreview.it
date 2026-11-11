@@ -11,10 +11,14 @@ from fastapi.templating import Jinja2Templates
 
 HERE = Path(__file__).parent
 
+# AGPL-3.0 section 13: users of a network service must be offered the source.
+SOURCE_URL = "https://github.com/jaateixeira/prreview.it"
+
 
 def build_app() -> FastAPI:
     app = FastAPI(title="Previewit", docs_url=None, redoc_url=None)
     templates = Jinja2Templates(directory=HERE / "templates")
+    templates.env.globals["source_url"] = SOURCE_URL
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     @app.get("/", response_class=HTMLResponse)

@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # Debian stable is the only supported platform (docs/adr/0005).
+    container: debian:13
+    env:
+      UV_PYTHON_PREFERENCE: only-system
+      UV_FROZEN: "1"
+    steps:
+      - name: Install system packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl git make python3
+      - uses: actions/checkout@v4
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install dependencies
+        run: uv sync
+      - name: Install Chromium for acceptance tests
+        run: uv run playwright install --with-deps chromium
+      - name: Lint, types, layering, tests
+        run: make check

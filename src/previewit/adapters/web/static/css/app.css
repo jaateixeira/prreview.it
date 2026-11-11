@@ -40,4 +40,8 @@ main { max-width: 1120px; margin: 0 auto; padding: var(--space-4); }
   border-radius: 999px; font-weight: 700; font-size: .9rem; }
 .pill-ok { background: var(--color-ok-soft); color: var(--color-ok); }
 
+.footer { max-width: 1120px; margin: 0 auto; padding: var(--space-4);
+  color: var(--color-ink-soft); font-size: .9rem; }
+.footer a { color: inherit; }
+
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

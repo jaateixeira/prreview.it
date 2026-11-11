@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from previewit.adapters.web.app import SOURCE_URL
 from previewit.bootstrap import create_app
 
 client = TestClient(create_app())
@@ -17,6 +18,11 @@ def test_status_fragment_is_a_fragment_not_a_page():
     assert r.status_code == 200
     assert "<html" not in r.text
     assert "All systems go" in r.text
+
+
+def test_pages_link_to_the_source_code():
+    # AGPL-3.0 section 13: network users must be offered the source.
+    assert f'href="{SOURCE_URL}"' in client.get("/").text
 
 
 def test_healthz():
