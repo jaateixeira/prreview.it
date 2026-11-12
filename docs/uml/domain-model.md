@@ -28,7 +28,7 @@ classDiagram
     }
     Organization "1" o-- "*" User : member with org role
     Organization "1" *-- "*" Space
-    Space "*" o-- "*" User : membership with role
+    Space "*" o-- "*" User : membership with roles
     Space "1" *-- "*" Group
     Group "*" o-- "*" User
     Party <|-- UserParty
@@ -38,7 +38,7 @@ classDiagram
 ```
 
 - A **Party** is the author of a submission or the writer of a review. Because both sides are a Party, all four directions work: user to user, user to group, group to user, group to group.
-- Roles are data (named permission sets), not code. Every tenant-owned row carries `org_id`.
+- There are three fixed roles in a Space, **organizer**, **author** and **reviewer**, and a Member holds a set of them ([ADR 0017](../adr/0017-actors-calls-and-invitations.md)). Presets only rename them. An auditor role is reserved. Every tenant-owned row carries `org_id`.
 - Organizations as parties are deferred ([ADR 0006](../adr/0006-organizations-as-parties-deferred.md)).
 
 ## Calls, rounds and reviews
@@ -47,7 +47,15 @@ classDiagram
 classDiagram
     direction LR
     class Call {
-        assignment or call for papers
+        call for authors
+        +access: public or protected
+        +token
+    }
+    class Invitation {
+        call for reviewers
+        +email
+        +token
+        +expires
     }
     class Rubric
     class Criterion {
@@ -103,6 +111,8 @@ classDiagram
     Submission "*" --> "1" Party : author
     Submission "1" *-- "1..*" Revision
     Call "1" *-- "1..*" ReviewRound
+    ReviewRound "1" *-- "*" Invitation
+    Invitation "*" --> "*" ReviewTask : carries
     ReviewRound "1" --> "1" AnonymityPolicy
     AnonymityPolicy --> RevealAt
     ReviewRound "1" *-- "*" ReviewTask
@@ -117,6 +127,7 @@ classDiagram
     Decision "*" --> "1" Submission
 ```
 
+- **Call** is the call for authors. Its link is public (the plain URL) or protected (the URL with the token). An **Invitation** is one personal link of the call for reviewers: bound to an email, with its own token, carrying the review tasks of that reviewer. `Call.access`, `Call.token` and `Invitation` are planned (steps C and D of ADR 0017).
 - **Artifact** content is type-specific (text, PDF) and comes from a plugin. Versions are immutable, so annotations are pinned to a revision and never drift.
 - **Annotation selector** is polymorphic: quote and offset for text, page and rectangles for PDF.
 - **Cardinality is allocation.** One `ReviewTask` links one reviewer Party to one Submission; 1:1, 1:n, n:1 and n:n are choices of the allocation strategy.

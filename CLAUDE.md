@@ -7,6 +7,7 @@ Open-source peer-review platform for ANY organization (education is one preset).
 - `domain/` and `application/` are pure Python: no FastAPI, Jinja2, SQLAlchemy, or I/O.
 - The core is domain-neutral: say Space / Member / Party / Call / Submission / Review, never course / student / teacher. Education wording lives in presets.
 - Words: use `docs/glossary.md` (ADR 0016). One concept, one word. Say anonymous, never blind; allocation, never assignment; Submission, never work product. `tests/unit/test_vocabulary.py` enforces it.
+- Three actors with fixed roles per Space: Organizer, Author, Reviewer (ADR 0017). Calls travel as links with tokens: the call for authors (public or protected) and one personal Invitation per reviewer. A verified email is the only entry requirement.
 - A Party (user or group) is both author and reviewer. Never special-case direction.
 - Identity display goes through one IdentityMask service (once built). Never render a name directly.
 - Every tenant-owned row carries `org_id`.

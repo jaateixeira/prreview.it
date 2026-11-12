@@ -2,6 +2,66 @@
 
 All flows are planned. Messages are written in plain words, not as function names; names are chosen when the code is written.
 
+## Process 1: organizing a call for authors (M2, step C)
+
+```mermaid
+sequenceDiagram
+    actor O as Organizer
+    actor A as Author
+    participant P as Previewit
+
+    O->>P: Create call (instructions, artifact type, deadline, access mode)
+    O->>P: Publish
+    P-->>O: Link (plain URL if public, URL with token if protected)
+    O-)A: Sends the link
+    A->>P: Open link
+    alt Protected call
+        P->>P: Check token (revoked or wrong: refuse)
+    end
+    P-->>A: Verify email, then the submission page
+    A->>P: Submit work (revision 1)
+    O->>P: Follow who has submitted
+    O->>P: Revoke or replace the token (protected calls)
+```
+
+## Process 2: organizing peer review (M3, M4, step D)
+
+```mermaid
+sequenceDiagram
+    actor O as Organizer
+    actor R as Reviewer
+    participant P as Previewit
+
+    O->>P: Build rubric, configure round (reviews each, anonymity, allocation)
+    O->>P: Choose reviewers and allocate
+    P->>P: Allocation: no conflicts, balanced load
+    O->>P: Send call for reviewers
+    P-->>O: One invitation link per reviewer
+    O-)R: Sends each reviewer their link
+    Note over P: Round open: see process 3
+    O->>P: Follow progress
+    O->>P: Release feedback, open the next round
+```
+
+## Process 3: reviewing by invitation (M5, step D)
+
+```mermaid
+sequenceDiagram
+    actor R as Reviewer
+    participant P as Previewit
+
+    R->>P: Open invitation link
+    P->>P: Check token (revoked, expired or wrong: refuse)
+    P-->>R: Verify the invited email
+    R->>P: Verify
+    P->>P: Give the reviewer role in the space, drop the token from the URL
+    P-->>R: My reviews: the allocated work
+    loop For each task
+        R->>P: Annotate and score (autosave)
+    end
+    R->>P: Submit review
+```
+
 ## Review by link (M2, M5, M6)
 
 The growth flow: one person asks another for a review with a link.
