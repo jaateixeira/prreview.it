@@ -1,7 +1,7 @@
 PYTEST_ARGS ?=
 .PHONY: report install hooks check lint types layers test unit integration acceptance run
 install:
-	uv sync
+	uv sync --all-extras
 	uv run playwright install chromium
 hooks:
 	uvx pre-commit install

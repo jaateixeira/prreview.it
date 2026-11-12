@@ -12,7 +12,10 @@
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="topbar">
     <a class="brand" href="/"><span class="brand-dot" aria-hidden="true"></span>Previewit</a>
-    <nav aria-label="Main"></nav>
+    <nav aria-label="Main">
+      {% if request.state.user %}<a href="/account">Account</a>
+      {% else %}<a href="/login">Log in</a> <a href="/signup">Sign up</a>{% endif %}
+    </nav>
   </header>
   <main id="main">{% block content %}{% endblock %}</main>
   <footer class="footer">

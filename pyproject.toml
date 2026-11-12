@@ -9,9 +9,25 @@ authors = [{ name = "Previewit contributors" }]
 keywords = ["peer review", "education", "htmx", "fastapi"]
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.1",
+    "argon2-cffi>=25.1.0",
+    "authlib>=1.9.5",
     "fastapi>=0.115",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
     "jinja2>=3.1",
+    "joserfc>=1.8.0",
+    "python-multipart>=0.0.33",
+    "sqlalchemy>=2.1.8",
     "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+saml = [
+    "pysaml2>=7.5.5",
+]
+postgres = [
+    "psycopg[binary]>=3.2",
 ]
 
 [dependency-groups]

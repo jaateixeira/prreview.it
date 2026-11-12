@@ -1,3 +1,4 @@
+import os
 import socket
 import threading
 import time
@@ -17,6 +18,8 @@ def _free_port() -> int:
 @pytest.fixture(scope="session")
 def base_url():
     port = _free_port()
+    # The app checks the Origin header of form posts against its own base URL.
+    os.environ["PREVIEWIT_BASE_URL"] = f"http://127.0.0.1:{port}"
     server = uvicorn.Server(
         uvicorn.Config(create_app(), host="127.0.0.1", port=port, log_level="warning")
     )

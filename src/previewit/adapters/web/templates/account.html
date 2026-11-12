@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth-card">
+  <h1>Your account</h1>
+  <dl class="facts">
+    <dt>Name</dt><dd>{{ account.display_name }}</dd>
+    <dt>Email</dt>
+    <dd>{% if account.email %}{{ account.email }}
+      {% if account.email_verified %}<span class="pill pill-ok">verified</span>{% else %}<span class="pill">not verified</span>{% endif %}
+      {% else %}none shared by your sign-in provider{% endif %}</dd>
+    <dt>Sign-in methods</dt>
+    <dd>{% if account.has_password %}Password{% if linked %}, {% endif %}{% endif %}{{ linked | join(", ") }}</dd>
+  </dl>
+  <form method="post" action="/logout" hx-boost="false">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-secondary" type="submit">Log out</button>
+  </form>
+</section>
+{% endblock %}
