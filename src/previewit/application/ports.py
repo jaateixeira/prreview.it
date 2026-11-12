@@ -21,6 +21,7 @@ from previewit.domain.calls import (
 )
 from previewit.domain.identity import Email, IdentityKey, User, UserId
 from previewit.domain.party import Party
+from previewit.domain.rounds import ReviewRound, ReviewTask, RoundId, TaskId
 from previewit.domain.rubrics import Criterion, CriterionId, Rubric, RubricId
 from previewit.domain.tenancy import (
     Group,
@@ -199,6 +200,14 @@ class DuplicateSubmission(Exception):
     """This party already has a submission for this call."""
 
 
+class DuplicateRound(Exception):
+    """A round with that number already exists for the call (two organizers at once)."""
+
+
+class DuplicateTask(Exception):
+    """That reviewer already has that submission in the round."""
+
+
 class CallRepository(Protocol):
     """Calls, submissions, revisions and share links. Rows carry org_id; callers authorise first."""
 
@@ -290,4 +299,36 @@ class RubricRepository(Protocol):
 
     def set_positions(self, rubric_id: RubricId, order: Sequence[CriterionId]) -> None:
         """Renumber the rubric's criteria 0, 1, 2, ... in this order."""
+        ...
+
+
+class RoundRepository(Protocol):
+    """Review rounds and their tasks. Rows carry org_id; callers authorise first."""
+
+    def add_round(self, round_: ReviewRound) -> None: ...
+
+    def get_round(self, round_id: RoundId) -> ReviewRound | None: ...
+
+    def update_round(self, round_: ReviewRound) -> None: ...
+
+    def delete_round(self, round_id: RoundId) -> None: ...
+
+    def rounds_of_call(self, call_id: CallId) -> list[ReviewRound]:
+        """Ordered by number."""
+        ...
+
+    def add_tasks(self, tasks: Sequence[ReviewTask]) -> None: ...
+
+    def replace_tasks(self, round_id: RoundId, tasks: Sequence[ReviewTask]) -> None:
+        """Atomically swap every task of the round for these."""
+        ...
+
+    def get_task(self, task_id: TaskId) -> ReviewTask | None: ...
+
+    def delete_task(self, task_id: TaskId) -> None: ...
+
+    def tasks_of_round(self, round_id: RoundId) -> list[ReviewTask]: ...
+
+    def tasks_for_parties(self, space_id: SpaceId, parties: Sequence[Party]) -> list[ReviewTask]:
+        """Tasks in the space whose reviewer is one of these parties."""
         ...

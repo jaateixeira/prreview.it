@@ -23,18 +23,22 @@ from previewit.adapters.persistence.memory import (
     InMemoryUserRepository,
 )
 from previewit.adapters.persistence.memory_calls import InMemoryCallRepository
+from previewit.adapters.persistence.memory_rounds import InMemoryRoundRepository
 from previewit.adapters.persistence.memory_rubrics import InMemoryRubricRepository
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.app import build_app
+from previewit.application.allocation import StrategyRegistry
 from previewit.application.artifacts import ArtifactRegistry
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService
 from previewit.application.criteria import CriterionRegistry
+from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
 from previewit.domain.identity import Email, ExternalClaims, Provider
 from previewit.domain.policy import DEFAULT_POLICY, VerificationPolicy
+from previewit.plugins.allocation import ManualStrategy, RandomStrategy, RoundRobinStrategy
 from previewit.plugins.criteria import (
     LevelsCriterion,
     NumericCriterion,
@@ -139,8 +143,20 @@ def make_harness(
         ),
         lambda: f"r{next(ids)}",
     )
+    rounds = RoundsService(
+        InMemoryRoundRepository(),
+        call_repo,
+        tenancy,
+        tenancy_repo,
+        users,
+        StrategyRegistry([RandomStrategy(), RoundRobinStrategy(), ManualStrategy()]),
+        lambda: f"q{next(ids)}",
+        clock,
+    )
     settings = Settings(secret_key="test-secret", base_url=base_url, verification_policy=policy)
-    app = build_app(settings, auth, verification, tenancy, calls, rubrics, dict(providers or {}))
+    app = build_app(
+        settings, auth, verification, tenancy, calls, rubrics, rounds, dict(providers or {})
+    )
     client = TestClient(app, base_url=base_url, follow_redirects=False)
     return Harness(client, auth, outbox, clock, app, base_url)
 

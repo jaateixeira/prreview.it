@@ -42,6 +42,9 @@ numeric = "previewit.plugins.criteria:NumericCriterion"
 levels = "previewit.plugins.criteria:LevelsCriterion"
 yes_no = "previewit.plugins.criteria:YesNoCriterion"
 criterion_text = "previewit.plugins.criteria:TextCriterion"
+random = "previewit.plugins.allocation:RandomStrategy"
+round_robin = "previewit.plugins.allocation:RoundRobinStrategy"
+manual = "previewit.plugins.allocation:ManualStrategy"
 
 [dependency-groups]
 dev = [
