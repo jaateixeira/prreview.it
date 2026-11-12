@@ -1,0 +1,16 @@
+{# Settings shared by the create and edit forms. Optional `r` is the round being edited. #}
+<label class="field">Reviews each submission gets
+  <input type="number" name="per_submission" min="1" max="20" value="{{ r.per_submission if r else 2 }}" required>
+</label>
+<label class="field">Allocation
+  <select name="strategy">
+    {% for s in strategies %}<option value="{{ s.key }}" {% if r and r.strategy_key == s.key %}selected{% endif %}>{{ s.label }}</option>{% endfor %}
+  </select>
+</label>
+<label class="field">Identities
+  <select name="anonymity">
+    {% for key, label in anonymity_options %}<option value="{{ key }}" {% if (r.anonymity_key if r else default_anonymity) == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+</label>
+<label class="field">Opens (UTC, optional) <input type="datetime-local" name="opens_at" value="{{ r.opens_at.strftime('%Y-%m-%dT%H:%M') if r and r.opens_at else '' }}"></label>
+<label class="field">Closes (UTC, optional) <input type="datetime-local" name="closes_at" value="{{ r.closes_at.strftime('%Y-%m-%dT%H:%M') if r and r.closes_at else '' }}"></label>

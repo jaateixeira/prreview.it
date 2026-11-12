@@ -276,3 +276,50 @@ share_grants = Table(
         ["space_id", "org_id"], ["spaces.id", "spaces.org_id"], ondelete="CASCADE"
     ),
 )
+
+
+# --- review rounds and tasks ------------------------------------------------------------------
+
+review_rounds = Table(
+    "review_rounds",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("space_id", String(64), nullable=False),
+    Column("call_id", String(64), nullable=False),
+    Column("number", Integer, nullable=False),
+    Column("per_submission", Integer, nullable=False),
+    Column("strategy_key", String(64), nullable=False),
+    Column("anonymity_key", String(64), nullable=False),
+    Column("opens_at", DateTime(timezone=True), nullable=True),
+    Column("closes_at", DateTime(timezone=True), nullable=True),
+    ForeignKeyConstraint(["call_id", "org_id"], ["calls.id", "calls.org_id"], ondelete="CASCADE"),
+    UniqueConstraint("id", "org_id", name="uq_review_rounds_id_org"),
+    UniqueConstraint("call_id", "number", name="uq_review_rounds_number"),
+    Index("ix_review_rounds_call_id", "call_id"),
+)
+
+review_tasks = Table(
+    "review_tasks",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("space_id", String(64), nullable=False),
+    Column("round_id", String(64), nullable=False),
+    Column("reviewer_kind", String(16), nullable=False),  # user | group
+    Column("reviewer_id", String(64), nullable=False),
+    Column("submission_id", String(64), nullable=False),
+    Column("revision_number", Integer, nullable=False),
+    Column("manual", Boolean, nullable=False),
+    ForeignKeyConstraint(
+        ["round_id", "org_id"], ["review_rounds.id", "review_rounds.org_id"], ondelete="CASCADE"
+    ),
+    ForeignKeyConstraint(
+        ["submission_id", "org_id"], ["submissions.id", "submissions.org_id"], ondelete="CASCADE"
+    ),
+    UniqueConstraint(
+        "round_id", "reviewer_kind", "reviewer_id", "submission_id", name="uq_review_tasks_pair"
+    ),
+    Index("ix_review_tasks_round_id", "round_id"),
+    Index("ix_review_tasks_reviewer", "space_id", "reviewer_kind", "reviewer_id"),
+)

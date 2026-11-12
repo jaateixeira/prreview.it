@@ -63,6 +63,7 @@
     <label class="field"><span><input type="checkbox" name="published" {% if call.published %}checked{% endif %}> Visible to participants</span></label>
     <button class="btn" type="submit">Save</button>
   </form>
+  <p><a class="btn btn-secondary" href="/calls/{{ call.id }}/rounds">Review rounds</a></p>
   {% if rubric_choices is not none %}
   <form method="post" action="/calls/{{ call.id }}/rubric" hx-boost="false" class="card form">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">

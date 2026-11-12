@@ -199,7 +199,7 @@ The core never imports a plugin; it asks the registry. Plugin API is marked *uns
 
 ## 6. Roadmap
 
-**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Login (Google, Apple, HAKA, email + password) is implemented ahead of M1 (see ADR 0007). Organizations, spaces, roles (preset-defined), invite links and groups are implemented (ADR 0009); M1 is done (authorisation matrix and cross-tenant tests pass). M2 is done (calls, submissions, revisions, text and PDF plugins, review by link; ADR 0011). M3 is done (rubrics, criterion-type plugins, templates, attach to a call, preview; ADR 0013). Next: M4.
+**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Login (Google, Apple, HAKA, email + password) is implemented ahead of M1 (see ADR 0007). Organizations, spaces, roles (preset-defined), invite links and groups are implemented (ADR 0009); M1 is done (authorisation matrix and cross-tenant tests pass). M2 is done (calls, submissions, revisions, text and PDF plugins, review by link; ADR 0011). M3 is done (rubrics, criterion-type plugins, templates, attach to a call, preview; ADR 0013). M4 is done (review rounds, random, round-robin and manual allocation with property tests, "my reviews"; ADR 0014). Next: M5.
 
 Every milestone: small PRs, tests first, CI green, ADR for each notable decision.
 

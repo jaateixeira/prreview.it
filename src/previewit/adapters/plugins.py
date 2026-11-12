@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import entry_points
 
+from previewit.application.allocation import AllocationStrategy
 from previewit.application.artifacts import ArtifactType
 from previewit.application.criteria import CriterionType
 
@@ -26,5 +27,15 @@ def discover_criterion_types() -> list[CriterionType]:
     for entry in sorted(entry_points(group=GROUP), key=lambda e: e.name):
         plugin = entry.load()()
         if isinstance(plugin, CriterionType):
+            found.append(plugin)
+    return found
+
+
+def discover_allocation_strategies() -> list[AllocationStrategy]:
+    """One instance of every installed plugin that implements the AllocationStrategy API."""
+    found: list[AllocationStrategy] = []
+    for entry in sorted(entry_points(group=GROUP), key=lambda e: e.name):
+        plugin = entry.load()()
+        if isinstance(plugin, AllocationStrategy):
             found.append(plugin)
     return found
