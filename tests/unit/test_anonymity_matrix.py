@@ -14,25 +14,25 @@ ORG, A, R, X = Viewer.ORGANIZER, Viewer.AUTHOR, Viewer.REVIEWER, Viewer.OTHER_RE
 
 PRESETS = {
     "open": AnonymityPolicy.open,
-    "single_blind_reviewers_hidden": AnonymityPolicy.single_blind_reviewers_hidden,
-    "single_blind_authors_hidden": AnonymityPolicy.single_blind_authors_hidden,
-    "double_blind": AnonymityPolicy.double_blind,
+    "reviewers_hidden": AnonymityPolicy.reviewers_hidden,
+    "authors_hidden": AnonymityPolicy.authors_hidden,
+    "double_anonymous": AnonymityPolicy.double_anonymous,
 }
 
 # preset -> {viewer: may that viewer see the AUTHOR's identity?}
 SEES_AUTHOR = {
     "open": {ORG: True, A: True, R: True, X: True},
-    "single_blind_reviewers_hidden": {ORG: True, A: True, R: True, X: True},
-    "single_blind_authors_hidden": {ORG: True, A: True, R: False, X: False},
-    "double_blind": {ORG: True, A: True, R: False, X: False},
+    "reviewers_hidden": {ORG: True, A: True, R: True, X: True},
+    "authors_hidden": {ORG: True, A: True, R: False, X: False},
+    "double_anonymous": {ORG: True, A: True, R: False, X: False},
 }
 
 # preset -> {viewer: may that viewer see the REVIEWER's identity?}
 SEES_REVIEWER = {
     "open": {ORG: True, A: True, R: True, X: True},
-    "single_blind_reviewers_hidden": {ORG: True, A: False, R: True, X: True},
-    "single_blind_authors_hidden": {ORG: True, A: True, R: True, X: True},
-    "double_blind": {ORG: True, A: False, R: True, X: False},
+    "reviewers_hidden": {ORG: True, A: False, R: True, X: True},
+    "authors_hidden": {ORG: True, A: True, R: True, X: True},
+    "double_anonymous": {ORG: True, A: False, R: True, X: False},
 }
 
 
@@ -58,9 +58,9 @@ def test_reveal_lifts_every_restriction(preset, viewer):
     assert policy.may_see_reviewer(viewer, revealed=True)
 
 
-def test_single_blind_presets_are_mirror_images():
-    rh = AnonymityPolicy.single_blind_reviewers_hidden()
-    ah = AnonymityPolicy.single_blind_authors_hidden()
+def test_single_anonymous_presets_are_mirror_images():
+    rh = AnonymityPolicy.reviewers_hidden()
+    ah = AnonymityPolicy.authors_hidden()
     assert rh.author_visible_to_reviewer and not rh.reviewer_visible_to_author
     assert ah.reviewer_visible_to_author and not ah.author_visible_to_reviewer
 
@@ -74,15 +74,17 @@ def test_default_reveal_is_never():
 
 
 def test_policy_is_immutable():
-    policy = AnonymityPolicy.double_blind()
+    policy = AnonymityPolicy.double_anonymous()
     with pytest.raises(dataclasses.FrozenInstanceError):
         policy.author_visible_to_reviewer = True  # type: ignore[misc]
 
 
 def test_policy_equality_and_replace():
-    custom = dataclasses.replace(AnonymityPolicy.double_blind(), reviewer_visible_to_author=True)
+    custom = dataclasses.replace(
+        AnonymityPolicy.double_anonymous(), reviewer_visible_to_author=True
+    )
     assert custom == AnonymityPolicy(False, True, False, RevealAt.NEVER)
-    assert custom != AnonymityPolicy.double_blind()
+    assert custom != AnonymityPolicy.double_anonymous()
 
 
 @pytest.mark.parametrize(

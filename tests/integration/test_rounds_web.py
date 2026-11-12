@@ -131,7 +131,7 @@ def test_edit_and_delete_a_round():
     r = post(
         c.teacher,
         f"/rounds/{rid}/edit",
-        {"per_submission": "3", "strategy": "random", "anonymity": "double_blind"},
+        {"per_submission": "3", "strategy": "random", "anonymity": "double_anonymous"},
         page=page_of(c, call),
     )
     assert r.status_code == 303

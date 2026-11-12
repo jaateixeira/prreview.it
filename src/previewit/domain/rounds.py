@@ -38,12 +38,12 @@ def clean_per_submission(value: int) -> int:
 ANONYMITY_PRESETS: dict[str, tuple[str, AnonymityPolicy]] = {
     "reviewers_hidden": (
         "Authors do not see who reviewed them",
-        AnonymityPolicy.single_blind_reviewers_hidden(),
+        AnonymityPolicy.reviewers_hidden(),
     ),
-    "double_blind": ("Neither side sees the other", AnonymityPolicy.double_blind()),
+    "double_anonymous": ("Neither side sees the other", AnonymityPolicy.double_anonymous()),
     "authors_hidden": (
         "Reviewers do not see who wrote the work",
-        AnonymityPolicy.single_blind_authors_hidden(),
+        AnonymityPolicy.authors_hidden(),
     ),
     "open": ("Everyone sees everyone", AnonymityPolicy.open()),
 }

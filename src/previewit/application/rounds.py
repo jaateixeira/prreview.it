@@ -212,7 +212,7 @@ class RoundsService:
     ) -> AllocationReport:
         """Replace every task of the round with a fresh allocation by its strategy.
 
-        Authors are the reviewers (a Party is both), so in a group assignment groups review
+        Authors are the reviewers (a Party is both), so in a group call groups review
         groups and in an individual one people review people."""
         round_, call = self._managed_round(actor, round_id)
         strategy = self._registry.get(round_.strategy_key)
