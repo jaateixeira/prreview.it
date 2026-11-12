@@ -37,3 +37,16 @@ def test_static_assets_served():
 def test_htmx_swaps_error_pages_instead_of_ignoring_them():
     # By default htmx drops 4xx/5xx responses, so a boosted link to a 404 would look dead.
     assert '"code":"[45].."' in client.get("/").text
+
+
+def test_glossary_is_served_as_markdown():
+    r = client.get("/docs/internal/glossary.md")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/markdown")
+    assert r.text.startswith("# Glossary")
+    assert "Submission" in r.text
+
+
+def test_only_the_glossary_is_served_under_docs_internal():
+    assert client.get("/docs/internal/PLAN.md").status_code == 404
+    assert client.get("/docs/internal/../PLAN.md").status_code in (404, 422)

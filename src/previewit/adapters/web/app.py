@@ -17,6 +17,7 @@ from previewit.adapters.auth.base import ExternalProvider
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.auth_routes import build_auth_router
 from previewit.adapters.web.calls_routes import build_calls_router
+from previewit.adapters.web.docs_routes import build_docs_router
 from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.reviews_routes import build_reviews_router
 from previewit.adapters.web.rounds_routes import build_rounds_router
@@ -94,6 +95,7 @@ def build_app(
     )
 
     kit = WebKit(templates, settings)
+    app.include_router(build_docs_router())
     app.include_router(build_tenancy_router(tenancy=tenancy, kit=kit))
     app.include_router(build_calls_router(calls=calls, rubrics=rubrics, kit=kit))
     app.include_router(build_rubrics_router(rubrics=rubrics, kit=kit))
