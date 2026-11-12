@@ -9,17 +9,14 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
-from starlette.datastructures import FormData
 
 from previewit.adapters.auth.base import AuthFailed, ExternalProvider
 from previewit.adapters.settings import Settings
+from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.session import (
     SessionCodec,
     clear_session_cookie,
-    csrf_ok,
-    csrf_token_for,
     safe_next,
-    set_csrf_cookie,
     set_session_cookie,
 )
 from previewit.application.auth import (
@@ -52,36 +49,20 @@ def build_auth_router(
 ) -> APIRouter:
     router = APIRouter()
 
+    kit = WebKit(templates, settings)
+
     def render(request: Request, name: str, context: dict[str, object], status: int = 200):
-        token, new = csrf_token_for(request)
-        context = {
-            "csrf_token": token,
-            "providers": [(p.value, PROVIDER_LABELS[p]) for p in providers],
-            **context,
-        }
-        response = templates.TemplateResponse(request, name, context, status_code=status)
-        if new:
-            set_csrf_cookie(response, token, secure=settings.https)
-        return response
+        context = {"providers": [(p.value, PROVIDER_LABELS[p]) for p in providers], **context}
+        return kit.render(request, name, context, status)
 
     def logged_in(user: User, next_url: str) -> Response:
         response = RedirectResponse(next_url, status_code=303)
         set_session_cookie(response, codec.dumps(user.id), secure=settings.https)
         return response
 
-    async def checked_form(request: Request) -> FormData | None:
-        form = await request.form()
-        submitted = form.get("csrf")
-        if csrf_ok(request, submitted if isinstance(submitted, str) else None, settings.origin):
-            return form
-        return None
-
-    def forbidden() -> Response:
-        return HTMLResponse("Invalid or missing form token. Reload the page and try again.", 403)
-
-    def text(form: FormData, key: str) -> str:
-        value = form.get(key)
-        return value if isinstance(value, str) else ""
+    checked_form = kit.checked_form
+    forbidden = kit.forbidden
+    text = kit.text
 
     # -- pages ---------------------------------------------------------------
 

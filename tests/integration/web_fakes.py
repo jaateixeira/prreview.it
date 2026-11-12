@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from itertools import count
 
+from fastapi import FastAPI
 from fastapi.responses import RedirectResponse, Response
 from fastapi.testclient import TestClient
 from starlette.requests import Request
@@ -17,11 +18,13 @@ from previewit.adapters.auth.base import AuthFailed, ExternalProvider
 from previewit.adapters.auth.passwords import Argon2Hasher
 from previewit.adapters.persistence.memory import (
     InMemoryEmailTokenRepository,
+    InMemoryTenancyRepository,
     InMemoryUserRepository,
 )
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.app import build_app
 from previewit.application.auth import AuthService
+from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
 from previewit.domain.identity import Email, ExternalClaims, Provider
 
@@ -72,6 +75,12 @@ class Harness:
     auth: AuthService
     outbox: Outbox
     clock: Clock
+    app: FastAPI
+    base_url: str
+
+    def new_client(self) -> TestClient:
+        """Another browser: same app, its own cookies."""
+        return TestClient(self.app, base_url=self.base_url, follow_redirects=False)
 
 
 def make_harness(
@@ -90,10 +99,11 @@ def make_harness(
     verification = VerificationService(
         users, InMemoryEmailTokenRepository(), outbox, base_url, clock
     )
+    tenancy = TenancyService(InMemoryTenancyRepository(), users, lambda: f"t{next(ids)}", clock)
     settings = Settings(secret_key="test-secret", base_url=base_url)
-    app = build_app(settings, auth, verification, dict(providers or {}))
+    app = build_app(settings, auth, verification, tenancy, dict(providers or {}))
     client = TestClient(app, base_url=base_url, follow_redirects=False)
-    return Harness(client, auth, outbox, clock)
+    return Harness(client, auth, outbox, clock, app, base_url)
 
 
 def make_client(

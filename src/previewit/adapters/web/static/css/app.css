@@ -66,3 +66,15 @@ nav a:hover { text-decoration: underline; }
 .facts dt { font-weight: 700; } .facts dd { margin: 0; }
 .notice { background: var(--color-ok-soft); color: var(--color-ok); padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-s); }
+
+.stack { display: grid; gap: var(--space-3); max-width: 760px; }
+.stack h1, .stack h2 { margin: 0; }
+.stack .card { max-width: none; }
+.list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.list small { color: var(--color-ink-soft); margin-left: var(--space-2); }
+.inline { display: inline-flex; gap: var(--space-2); margin-left: var(--space-2); align-items: center; }
+.btn-small { padding: var(--space-1) var(--space-3); font-size: .9rem; }
+.crumb { margin: 0; color: var(--color-ink-soft); }
+.link { word-break: break-all; }
+select, .inline input[type=text] { font: inherit; padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-ink-soft); border-radius: var(--radius-s); }

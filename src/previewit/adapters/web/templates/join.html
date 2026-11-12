@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth-card">
+  <h1>Join {{ preview.space_name }}</h1>
+  <p>{{ preview.organization_name }} invites you as <strong>{{ preview.role_label }}</strong>.</p>
+  {% if request.state.user %}
+  <form method="post" action="/join/{{ token }}" hx-boost="false" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn" type="submit">Join</button>
+  </form>
+  {% else %}
+  {% set back = ('/join/' ~ token) | urlencode %}
+  <p>Log in or create an account to join. It takes a minute.</p>
+  <p><a class="btn" href="/signup?next={{ back }}">Create an account</a>
+     <a class="btn btn-secondary" href="/login?next={{ back }}">Log in</a></p>
+  {% endif %}
+</section>
+{% endblock %}

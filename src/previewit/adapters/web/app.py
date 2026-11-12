@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
@@ -15,8 +16,16 @@ from starlette.middleware.sessions import SessionMiddleware
 from previewit.adapters.auth.base import ExternalProvider
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.auth_routes import build_auth_router
+from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.session import SESSION_COOKIE, SessionCodec
+from previewit.adapters.web.tenancy_routes import LoginRequired, build_tenancy_router
 from previewit.application.auth import AuthService
+from previewit.application.tenancy import (
+    Forbidden,
+    InvalidInvite,
+    NotFound,
+    TenancyService,
+)
 from previewit.application.verification import VerificationService
 from previewit.domain.identity import Provider
 
@@ -30,6 +39,7 @@ def build_app(
     settings: Settings,
     auth: AuthService,
     verification: VerificationService,
+    tenancy: TenancyService,
     providers: Mapping[Provider, ExternalProvider],
 ) -> FastAPI:
     app = FastAPI(title="Previewit", docs_url=None, redoc_url=None)
@@ -69,6 +79,36 @@ def build_app(
             codec=codec,
         )
     )
+
+    kit = WebKit(templates, settings)
+    app.include_router(build_tenancy_router(tenancy=tenancy, kit=kit))
+
+    def error_page(request: Request, status: int, title: str, message: str):
+        return kit.render(
+            request, "error.html", {"page_title": title, "title": title, "message": message}, status
+        )
+
+    @app.exception_handler(NotFound)
+    async def not_found(request: Request, _exc: Exception):
+        return error_page(request, 404, "Not found", "We could not find that page.")
+
+    @app.exception_handler(Forbidden)
+    async def forbidden(request: Request, _exc: Exception):
+        return error_page(request, 403, "Not allowed", "You do not have permission to do that.")
+
+    @app.exception_handler(InvalidInvite)
+    async def invalid_invite(request: Request, _exc: Exception):
+        return error_page(
+            request,
+            404,
+            "Invitation not valid",
+            "This invitation link is invalid, expired or has been used up. Ask for a new one.",
+        )
+
+    @app.exception_handler(LoginRequired)
+    async def login_required(request: Request, _exc: Exception):
+        next_url = request.url.path if request.method == "GET" else "/spaces"
+        return RedirectResponse(f"/login?next={quote(next_url, safe='')}", status_code=303)
 
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request) -> HTMLResponse:
