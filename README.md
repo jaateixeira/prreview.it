@@ -9,6 +9,13 @@ Status: early development (M0 complete). Licensed under AGPL-3.0-or-later. See [
 ## Hosted or self-hosted
 The easy way to use Previewit will be the hosted service, with a free tier (in preparation). Self-hosting is possible but unsupported and for experts only: Debian Linux (stable) and PostgreSQL, no container image or installer. See [ADR 0005](docs/adr/0005-hosted-first-debian-only.md).
 
+## Documentation
+| | |
+|---|---|
+| Plan and decisions | [docs/PLAN.md](docs/PLAN.md), [docs/adr/](docs/adr/), [docs/business/](docs/business/README.md) |
+| UML diagrams | [docs/uml/](docs/uml/README.md) |
+| Manuals | [User manual](docs/manuals/user-manual.md), [Deployment manual](docs/manuals/deployment-manual.md) |
+
 ## Quick start
 ```bash
 make install   # uv sync + Playwright browser
