@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack">
+  <p class="crumb"><a href="/spaces">Spaces</a> / <a href="/spaces/{{ space.id }}">{{ space.name }}</a></p>
+  <h1>{{ word('calls') | capitalize }}</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <ul class="list">
+    {% for c in calls %}
+    <li><a href="/calls/{{ c.id }}">{{ c.title }}</a>
+      {% if not c.published %}<span class="pill">draft</span>{% endif %}
+      {% if c.closes_at %}<small>closes {{ c.closes_at.strftime('%Y-%m-%d %H:%M') }} UTC</small>{% endif %}
+    </li>
+    {% else %}<li>No {{ word('calls') }} yet.</li>{% endfor %}
+  </ul>
+  {% if manage %}
+  <form method="post" action="/spaces/{{ space.id }}/calls" hx-boost="false" class="card form">
+    <h3>Create {{ word('call') }}</h3>
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Title <input type="text" name="title" maxlength="200" required></label>
+    <label class="field">Description <textarea name="description" rows="4" maxlength="5000"></textarea></label>
+    <label class="field">Kind of work
+      <select name="artifact_type">{% for t in types %}<option value="{{ t.key }}">{{ t.label }}</option>{% endfor %}</select>
+    </label>
+    <label class="field"><span><input type="checkbox" name="group_work"> Groups submit together</span></label>
+    <label class="field">Closes (UTC, optional) <input type="datetime-local" name="closes_at"></label>
+    <label class="field"><span><input type="checkbox" name="published" checked> Visible to participants</span></label>
+    <button class="btn" type="submit">Create {{ word('call') }}</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

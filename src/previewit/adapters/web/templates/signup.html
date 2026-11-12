@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth-card">
+  <h1>Create your account</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% include "_providers.html" %}
+  <form method="post" action="/signup" hx-boost="false" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label class="field">Name
+      <input type="text" name="name" value="{{ name or '' }}" autocomplete="name">
+    </label>
+    <label class="field">Email
+      <input type="email" name="email" value="{{ email or '' }}" autocomplete="email" required>
+    </label>
+    <label class="field">Password <small>(at least 10 characters)</small>
+      <input type="password" name="password" autocomplete="new-password" minlength="10" required>
+    </label>
+    <button class="btn" type="submit">Sign up</button>
+  </form>
+  <p>Already have an account? <a href="/login?next={{ next | urlencode }}">Log in</a></p>
+</section>
+{% endblock %}

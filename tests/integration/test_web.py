@@ -32,3 +32,8 @@ def test_healthz():
 def test_static_assets_served():
     assert client.get("/static/css/tokens.css").status_code == 200
     assert client.get("/static/js/htmx.min.js").status_code == 200
+
+
+def test_htmx_swaps_error_pages_instead_of_ignoring_them():
+    # By default htmx drops 4xx/5xx responses, so a boosted link to a 404 would look dead.
+    assert '"code":"[45].."' in client.get("/").text

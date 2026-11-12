@@ -1,0 +1,8 @@
+{% if providers %}
+<div class="providers" hx-boost="false">
+  {% for key, label in providers %}
+  <a class="btn btn-secondary" href="/auth/{{ key }}/login?next={{ next | urlencode }}">Continue with {{ label }}</a>
+  {% endfor %}
+</div>
+<p class="divider"><span>or with email</span></p>
+{% endif %}

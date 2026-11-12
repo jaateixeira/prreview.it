@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack">
+  <h1>{{ org.name }}</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <h2>{{ word('spaces') | capitalize }}</h2>
+  {% if spaces %}
+  <ul class="list">{% for space in spaces %}<li><a href="/spaces/{{ space.id }}">{{ space.name }}</a></li>{% endfor %}</ul>
+  {% else %}<p>No {{ word('spaces') }} yet.</p>{% endif %}
+  {% if is_owner %}
+  <form method="post" action="/orgs/{{ org.id }}/spaces" hx-boost="false" class="card form">
+    <h3>Create a {{ word('space') }}</h3>
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Name <input type="text" name="name" maxlength="100" required></label>
+    <button class="btn" type="submit">Create {{ word('space') }}</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

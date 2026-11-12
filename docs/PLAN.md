@@ -146,6 +146,8 @@ Dependency rule: `adapters → application → domain`. Never the reverse.
 |---|---|---|
 | Packaging/env | `uv` | Fast, reproducible lockfile |
 | DB | SQLAlchemy 2.0 + Alembic; PostgreSQL is the only supported production database; SQLite for local development and fast tests | Easy contributor setup, one production stack |
+| Cache | **Valkey** for the hottest reads (the signed-in user on every request); an in-process cache when none is configured; a down cache behaves as empty (ADR 0012) | Fast entry into the system without making the cache a dependency |
+| Logs and console | **loguru** (levels TRACE to ERROR, standard logging captured) and **rich** (startup panel) | Debuggable in development, readable for operators |
 | Frontend | Jinja2 + HTMX + a little Alpine.js; hand-written CSS with design tokens (no Node build) | Lightning fast, zero JS toolchain for contributors |
 | PDF | PDF.js for rendering; annotation layer in our own small JS module | Mature, open source |
 | Text annotation | Server stores selectors; small JS captures the selection | Keeps JS minimal |
@@ -197,7 +199,7 @@ The core never imports a plugin; it asks the registry. Plugin API is marked *uns
 
 ## 6. Roadmap
 
-**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Next: M1.
+**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Login (Google, Apple, HAKA, email + password) is implemented ahead of M1 (see ADR 0007). Organizations, spaces, roles (preset-defined), invite links and groups are implemented (ADR 0009); M1 is done (authorisation matrix and cross-tenant tests pass). M2 is done (calls, submissions, revisions, text and PDF plugins, review by link; ADR 0011). M3 is done (rubrics, criterion-type plugins, templates, attach to a call, preview; ADR 0013). M4 is done (review rounds, random, round-robin and manual allocation with property tests, "my reviews"; ADR 0014). Next: M5.
 
 Every milestone: small PRs, tests first, CI green, ADR for each notable decision.
 
@@ -251,7 +253,7 @@ Every milestone: small PRs, tests first, CI green, ADR for each notable decision
 
 1. Name/package: `previewit`.
 2. SQLite for local development and tests only; PostgreSQL is the only supported production database.
-3. Local accounts in v0.1; institutional login (OIDC/SAML) is the first post-v0.1 integration.
+3. Local accounts plus Google, Apple and HAKA login were pulled forward (ADR 0007); organizations and roles remain in M1.
 4. English + Finnish UI; vocabulary overridable per organization.
 5. Group review = one shared review editable by any member (no live co-editing yet).
 6. Default anonymity = reviewer hidden from author, configurable per round and direction.

@@ -1,0 +1,54 @@
+# Previewit configuration. Copy to previewit.toml (or /etc/previewit/previewit.toml),
+# or point PREVIEWIT_CONFIG at it. PREVIEWIT_* environment variables override this file.
+# Secrets live here, so keep the file private: chmod 600 previewit.toml
+# Relative file paths are relative to this file.
+
+[server]
+base_url = "https://prreview.example"      # https requires a secret key
+# secret_key = "…"                         # openssl rand -hex 32
+# secret_key_file = "secret.key"           # alternative: read it from a file
+
+[database]
+url = "postgresql+psycopg://previewit:password@localhost/previewit"
+
+[cache]
+# Valkey keeps the signed-in user close at hand. Without it an in-process cache is used,
+# which is right for one worker only.
+# url = "valkey://127.0.0.1:6379/0"
+
+[logging]
+level = "INFO"                             # TRACE | DEBUG | INFO | WARNING | ERROR
+
+[mail]
+# smtp_host = "smtp.example.org"
+# smtp_port = 587
+# smtp_user = "…"
+# smtp_password = "…"
+# smtp_security = "starttls"               # starttls | ssl | none
+# from = "Previewit <no-reply@prreview.example>"
+
+# --- Email verification: which actions need a verified email address -------------------
+# Actions: create_organization, invite, join, submit, review.
+# Unverified users can always be invited and can always sign in; this only gates the actions
+# you list. The default (below) lets them do everything except review.
+[policy]
+require_verified_email_for = ["review"]
+
+# --- Login providers (each is enabled when its settings are present) -------------------
+# [login.google]
+# client_id = "…"
+# client_secret = "…"
+
+# [login.apple]
+# client_id = "…"
+# team_id = "…"
+# key_id = "…"
+# private_key_file = "AuthKey.p8"
+
+# [login.haka]
+# entity_id = "https://prreview.example/saml/sp"
+# cert_file = "sp.crt"
+# key_file = "sp.key"
+# metadata_url = "https://haka.funet.fi/metadata/haka-metadata.xml"
+# metadata_cert = "haka-metadata.crt"
+# discovery_url = "https://haka.funet.fi/shibboleth/WAYF"

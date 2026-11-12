@@ -17,21 +17,33 @@ jobs:
     runs-on: ubuntu-latest
     # Debian stable is the only supported platform (docs/adr/0005).
     container: debian:13
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: previewit
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       UV_PYTHON_PREFERENCE: only-system
       UV_FROZEN: "1"
+      PREVIEWIT_TEST_POSTGRES_URL: postgresql+psycopg://postgres:postgres@postgres:5432/previewit
     steps:
       - name: Install system packages
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl git make python3
+          apt-get install -y --no-install-recommends ca-certificates curl git make python3 xmlsec1
       - uses: actions/checkout@v4
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --all-extras
       - name: Install Chromium for acceptance tests
         run: uv run playwright install --with-deps chromium
       - name: Lint, types, layering, tests

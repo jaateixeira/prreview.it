@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack">
+  <h1>Shared with you</h1>
+  <ul class="list">
+    {% for i in items %}
+    <li><a href="/{{ 'calls' if i.target.value == 'call' else 'submissions' }}/{{ i.target_id }}">{{ i.title }}</a></li>
+    {% else %}<li>Nothing has been shared with you yet.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

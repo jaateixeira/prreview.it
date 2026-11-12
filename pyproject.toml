@@ -9,10 +9,42 @@ authors = [{ name = "Previewit contributors" }]
 keywords = ["peer review", "education", "htmx", "fastapi"]
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.1",
+    "argon2-cffi>=25.1.0",
+    "authlib>=1.9.5",
     "fastapi>=0.115",
+    "httpx>=0.28.1",
+    "itsdangerous>=2.2.0",
     "jinja2>=3.1",
+    "joserfc>=1.8.0",
+    "loguru>=0.8.0",
+    "python-multipart>=0.0.33",
+    "rich>=15.0.0",
+    "sqlalchemy>=2.1.8",
     "uvicorn[standard]>=0.30",
 ]
+
+[project.optional-dependencies]
+saml = [
+    "pysaml2>=7.5.5",
+]
+postgres = [
+    "psycopg[binary]>=3.2",
+]
+valkey = [
+    "valkey>=6.0",
+]
+
+[project.entry-points."previewit.plugins"]
+text = "previewit.plugins.text:TextArtifact"
+pdf = "previewit.plugins.pdf:PdfArtifact"
+numeric = "previewit.plugins.criteria:NumericCriterion"
+levels = "previewit.plugins.criteria:LevelsCriterion"
+yes_no = "previewit.plugins.criteria:YesNoCriterion"
+criterion_text = "previewit.plugins.criteria:TextCriterion"
+random = "previewit.plugins.allocation:RandomStrategy"
+round_robin = "previewit.plugins.allocation:RoundRobinStrategy"
+manual = "previewit.plugins.allocation:ManualStrategy"
 
 [dependency-groups]
 dev = [
@@ -64,3 +96,9 @@ name = "Domain is pure (no framework imports)"
 type = "forbidden"
 source_modules = ["previewit.domain", "previewit.application"]
 forbidden_modules = ["fastapi", "starlette", "jinja2", "sqlalchemy", "uvicorn"]
+
+[[tool.importlinter.contracts]]
+name = "Plugins use the application and domain only"
+type = "forbidden"
+source_modules = ["previewit.plugins"]
+forbidden_modules = ["previewit.adapters", "previewit.bootstrap"]

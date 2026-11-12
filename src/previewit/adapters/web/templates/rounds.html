@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack">
+  <p class="crumb"><a href="/spaces">Spaces</a> / <a href="/calls/{{ call.id }}">{{ call.title }}</a></p>
+  <h1>Review rounds</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+
+  {% for v in views %}
+  {% set r = v.round %}
+  <article class="card stack" id="round-{{ r.number }}">
+    <h2>Round {{ r.number }} <span class="pill">{{ v.status.value }}</span></h2>
+    <p>{{ v.strategy_label }} allocation, {{ r.per_submission }} review{{ '' if r.per_submission == 1 else 's' }} per submission. {{ v.anonymity_label }}.
+      {% if r.opens_at %}Opens {{ r.opens_at.strftime('%Y-%m-%d %H:%M') }} UTC. {% endif %}{% if r.closes_at %}Closes {{ r.closes_at.strftime('%Y-%m-%d %H:%M') }} UTC.{% endif %}</p>
+
+    {% if v.automatic %}
+    <form method="post" action="/rounds/{{ r.id }}/allocate" hx-boost="false" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn" type="submit">Allocate reviewers (round {{ r.number }})</button>
+      {% if v.tasks %}<small>This replaces the current pairs.</small>{% endif %}
+    </form>
+    {% endif %}
+
+    {% if v.gaps %}
+    <p class="notice">Too few reviewers for: {% for g in v.gaps %}{{ g.submission_title }} ({{ g.have }} of {{ r.per_submission }}){{ ', ' if not loop.last }}{% endfor %}.</p>
+    {% endif %}
+
+    {% if v.tasks %}
+    <table class="table">
+      <thead><tr><th>Reviewer</th><th>Reviews</th><th>Author</th><th></th></tr></thead>
+      <tbody>
+      {% for t in v.tasks %}
+        <tr>
+          <td>{{ t.reviewer_label }}</td>
+          <td>{{ t.submission_title }} <small>(revision {{ t.task.revision_number }})</small></td>
+          <td>{{ t.author_label }}</td>
+          <td>
+            <form method="post" action="/rounds/{{ r.id }}/tasks/{{ t.task.id }}/delete" hx-boost="false" class="inline">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <button class="btn btn-small btn-secondary" type="submit" aria-label="Remove {{ t.reviewer_label }} from {{ t.submission_title }}">Remove</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p>No reviewers allocated yet. {{ v.submissions }} submission{{ '' if v.submissions == 1 else 's' }} so far.</p>{% endif %}
+
+    <details>
+      <summary>Add a reviewer by hand</summary>
+      <form method="post" action="/rounds/{{ r.id }}/tasks" hx-boost="false" class="form">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <label class="field">Submission
+          <select name="submission_id">
+            {% for s in submissions %}<option value="{{ s.submission.id }}">{{ s.submission.title }} ({{ s.author_name }})</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field">Reviewer
+          <select name="reviewer">
+            {% for o in options[r.id] %}<option value="{{ 'group:' ~ o.party.group_id if o.party.group_id is defined else 'user:' ~ o.party.user_id }}">{{ o.label }}</option>{% endfor %}
+          </select>
+        </label>
+        <button class="btn btn-small" type="submit">Add reviewer to round {{ r.number }}</button>
+      </form>
+    </details>
+
+    <details>
+      <summary>Change round {{ r.number }}</summary>
+      <form method="post" action="/rounds/{{ r.id }}/edit" hx-boost="false" class="form">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        {% include "_round_fields.html" %}
+        <button class="btn btn-small" type="submit">Save round {{ r.number }}</button>
+      </form>
+      <form method="post" action="/rounds/{{ r.id }}/delete" hx-boost="false" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-small btn-secondary" type="submit">Delete round {{ r.number }}</button>
+      </form>
+    </details>
+  </article>
+  {% else %}<p>No rounds yet.</p>{% endfor %}
+
+  <form method="post" action="/calls/{{ call.id }}/rounds" hx-boost="false" class="card form">
+    <h3>Add round {{ next_number }}</h3>
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    {% set r = none %}{% include "_round_fields.html" %}
+    <button class="btn" type="submit">Create round</button>
+  </form>
+</section>
+{% endblock %}
