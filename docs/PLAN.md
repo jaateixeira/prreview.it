@@ -197,7 +197,7 @@ The core never imports a plugin; it asks the registry. Plugin API is marked *uns
 
 ## 6. Roadmap
 
-**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Next: M1.
+**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Login (Google, Apple, HAKA, email + password) is implemented ahead of M1 (see ADR 0007). Next: M1 (organizations, spaces, groups).
 
 Every milestone: small PRs, tests first, CI green, ADR for each notable decision.
 
@@ -251,7 +251,7 @@ Every milestone: small PRs, tests first, CI green, ADR for each notable decision
 
 1. Name/package: `previewit`.
 2. SQLite for local development and tests only; PostgreSQL is the only supported production database.
-3. Local accounts in v0.1; institutional login (OIDC/SAML) is the first post-v0.1 integration.
+3. Local accounts plus Google, Apple and HAKA login were pulled forward (ADR 0007); organizations and roles remain in M1.
 4. English + Finnish UI; vocabulary overridable per organization.
 5. Group review = one shared review editable by any member (no live co-editing yet).
 6. Default anonymity = reviewer hidden from author, configurable per round and direction.
