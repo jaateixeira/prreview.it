@@ -68,3 +68,45 @@ def test_registry():
         reg.get("nope")
     with pytest.raises(ValueError, match="twice"):
         reg.register(NumericCriterion())
+
+
+# --- answers -----------------------------------------------------------------------------------
+
+
+def test_numeric_answers_are_checked_and_scored():
+    n, cfg = NumericCriterion(), {"min": 1, "max": 5}
+    assert n.check_answer(cfg, " 3 ") == "3" and n.check_answer(cfg, "") == ""
+    for bad in ("0", "6", "x", "2.5"):
+        with pytest.raises(CriterionError):
+            n.check_answer(cfg, bad)
+    assert n.score(cfg, "3") == 3
+    assert 'value="3"' in n.render_html(cfg, "c", "3") and "value=" not in n.render_html(cfg, "c")
+
+
+def test_level_answers_are_checked_and_shown_checked():
+    lv = LevelsCriterion()
+    cfg = lv.parse_config({"levels": "Low | a\nHigh | b"})
+    assert lv.check_answer(cfg, "2") == "2" and lv.check_answer(cfg, " ") == ""
+    for bad in ("0", "3", "high", "-1"):
+        with pytest.raises(CriterionError):
+            lv.check_answer(cfg, bad)
+    assert lv.score(cfg, "2") == 2
+    assert lv.render_html(cfg, "c", "2").count("checked") == 1
+
+
+def test_yes_no_answers():
+    yn = YesNoCriterion()
+    assert [yn.check_answer({}, v) for v in ("1", "0", "")] == ["1", "0", ""]
+    with pytest.raises(CriterionError):
+        yn.check_answer({}, "maybe")
+    assert yn.score({}, "0") == 0
+    assert yn.render_html({}, "c", "0").count("checked") == 1
+
+
+def test_text_answers_are_trimmed_limited_escaped_and_not_scored():
+    t, cfg = TextCriterion(), {"max_length": 10}
+    assert t.check_answer(cfg, "  hi  ") == "hi"
+    with pytest.raises(CriterionError):
+        t.check_answer(cfg, "x" * 11)
+    assert t.score(cfg, "hi") is None
+    assert "&lt;b&gt;" in t.render_html(cfg, "c", "<b>")

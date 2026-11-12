@@ -26,6 +26,7 @@ from previewit.adapters.persistence.sql import (
     SqlUserRepository,
 )
 from previewit.adapters.persistence.sql_calls import SqlCallRepository
+from previewit.adapters.persistence.sql_reviews import SqlReviewRepository
 from previewit.adapters.persistence.sql_rounds import SqlRoundRepository
 from previewit.adapters.persistence.sql_rubrics import SqlRubricRepository
 from previewit.adapters.plugins import (
@@ -41,6 +42,7 @@ from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService
 from previewit.application.criteria import CriterionRegistry
 from previewit.application.ports import Mailer
+from previewit.application.reviews import ReviewsService
 from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import TenancyService
@@ -98,16 +100,20 @@ def create_app() -> FastAPI:
         policy=settings.verification_policy,
     )
     criterion_types = CriterionRegistry(discover_criterion_types())
+    rubric_repo = SqlRubricRepository(engine)
     rubrics = RubricsService(
-        SqlRubricRepository(engine),
+        rubric_repo,
         call_repo,
         tenancy,
         criterion_types,
         lambda: uuid.uuid4().hex,
     )
     strategies = StrategyRegistry(discover_allocation_strategies())
+    round_repo = SqlRoundRepository(engine)
+    review_repo = SqlReviewRepository(engine)
     rounds = RoundsService(
-        SqlRoundRepository(engine),
+        round_repo,
+        review_repo,
         call_repo,
         tenancy,
         tenancy_repo,
@@ -117,6 +123,19 @@ def create_app() -> FastAPI:
         lambda: datetime.now(UTC),
     )
     registry = ArtifactRegistry(artifact_types)
+    reviews = ReviewsService(
+        review_repo,
+        round_repo,
+        call_repo,
+        rubric_repo,
+        tenancy,
+        tenancy_repo,
+        users,
+        criterion_types,
+        registry,
+        lambda: uuid.uuid4().hex,
+        lambda: datetime.now(UTC),
+    )
     mailer_mode = "SMTP" if isinstance(mailer, SmtpMailer) else "written to the log (development)"
     show_startup(
         startup_panel(
@@ -129,7 +148,9 @@ def create_app() -> FastAPI:
             log_level=settings.log_level,
         )
     )
-    return build_app(settings, auth, verification, tenancy, calls, rubrics, rounds, providers)
+    return build_app(
+        settings, auth, verification, tenancy, calls, rubrics, rounds, reviews, providers
+    )
 
 
 def _version() -> str:

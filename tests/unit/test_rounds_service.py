@@ -3,6 +3,7 @@ from itertools import count
 
 import pytest
 
+from previewit.adapters.persistence.memory_reviews import InMemoryReviewRepository
 from previewit.adapters.persistence.memory_rounds import InMemoryRoundRepository
 from previewit.application.allocation import StrategyRegistry, UnknownStrategy
 from previewit.application.artifacts import Upload
@@ -18,11 +19,13 @@ from tests.unit.test_tenancy_service import ALICE, AVA, BOB, ZED
 class RoundsWorld(CWorld):
     """The calls world plus a rounds service."""
 
-    def __init__(self, *args, rounds_repo=None, **kw):
+    def __init__(self, *args, rounds_repo=None, reviews_repo=None, **kw):
         super().__init__(*args, **kw)
         ids = count(1)
+        self.review_repo = reviews_repo or InMemoryReviewRepository()
         self.rr = RoundsService(
             rounds_repo or InMemoryRoundRepository(),
+            self.review_repo,
             self.c._repo,
             self.t,
             self.t._repo,

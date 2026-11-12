@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 
 from previewit.adapters.persistence.sql import SqlTenancyRepository, SqlUserRepository
 from previewit.adapters.persistence.sql_calls import SqlCallRepository
+from previewit.adapters.persistence.sql_reviews import SqlReviewRepository
 from previewit.adapters.persistence.sql_rounds import SqlRoundRepository
 from previewit.adapters.persistence.tables import calls, review_rounds, review_tasks
 from previewit.domain.party import UserParty
@@ -22,6 +23,7 @@ def w(engine) -> RoundsWorld:
         repo=SqlTenancyRepository(engine),
         calls_repo=SqlCallRepository(engine),
         rounds_repo=SqlRoundRepository(engine),
+        reviews_repo=SqlReviewRepository(engine),
     )
 
 

@@ -27,13 +27,14 @@
 
     {% if v.tasks %}
     <table class="table">
-      <thead><tr><th>Reviewer</th><th>Reviews</th><th>Author</th><th></th></tr></thead>
+      <thead><tr><th>Reviewer</th><th>Reviews</th><th>Author</th><th>Review</th><th></th></tr></thead>
       <tbody>
       {% for t in v.tasks %}
         <tr>
           <td>{{ t.reviewer_label }}</td>
           <td>{{ t.submission_title }} <small>(revision {{ t.task.revision_number }})</small></td>
           <td>{{ t.author_label }}</td>
+          <td><a href="/tasks/{{ t.task.id }}">{{ t.state }}</a></td>
           <td>
             <form method="post" action="/rounds/{{ r.id }}/tasks/{{ t.task.id }}/delete" hx-boost="false" class="inline">
               <input type="hidden" name="csrf" value="{{ csrf_token }}">

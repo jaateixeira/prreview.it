@@ -21,6 +21,7 @@ from previewit.domain.calls import (
 )
 from previewit.domain.identity import Email, IdentityKey, User, UserId
 from previewit.domain.party import Party
+from previewit.domain.reviews import Annotation, AnnotationId, Review, ReviewEdit, ReviewId
 from previewit.domain.rounds import ReviewRound, ReviewTask, RoundId, TaskId
 from previewit.domain.rubrics import Criterion, CriterionId, Rubric, RubricId
 from previewit.domain.tenancy import (
@@ -204,6 +205,10 @@ class DuplicateRound(Exception):
     """A round with that number already exists for the call (two organizers at once)."""
 
 
+class DuplicateReview(Exception):
+    """This task already has a review."""
+
+
 class DuplicateTask(Exception):
     """That reviewer already has that submission in the round."""
 
@@ -331,4 +336,36 @@ class RoundRepository(Protocol):
 
     def tasks_for_parties(self, space_id: SpaceId, parties: Sequence[Party]) -> list[ReviewTask]:
         """Tasks in the space whose reviewer is one of these parties."""
+        ...
+
+
+class ReviewRepository(Protocol):
+    """Reviews, their edit trail and annotations. Rows carry org_id; callers authorise first."""
+
+    def get_review(self, review_id: ReviewId) -> Review | None: ...
+
+    def review_of_task(self, task_id: TaskId) -> Review | None: ...
+
+    def add_review(self, review: Review, edit: ReviewEdit) -> None:
+        """Raises DuplicateReview if the task already has one."""
+        ...
+
+    def update_review(self, review: Review, expected_version: int, edit: ReviewEdit) -> bool:
+        """Save only if the stored version is still `expected_version`; False if it moved."""
+        ...
+
+    def reviews_in_round(self, round_id: RoundId) -> list[Review]: ...
+
+    def edits_of(self, review_id: ReviewId) -> list[ReviewEdit]:
+        """Oldest first."""
+        ...
+
+    def add_annotation(self, annotation: Annotation) -> None: ...
+
+    def get_annotation(self, annotation_id: AnnotationId) -> Annotation | None: ...
+
+    def delete_annotation(self, annotation_id: AnnotationId) -> None: ...
+
+    def annotations_of(self, review_id: ReviewId) -> list[Annotation]:
+        """Oldest first."""
         ...

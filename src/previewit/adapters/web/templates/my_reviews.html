@@ -6,7 +6,7 @@
   <ul class="list cards">
     {% for t in tasks %}
     <li class="card">
-      <strong>{{ t.submission_title }}</strong>
+      <strong><a href="/tasks/{{ t.task.id }}">{{ t.submission_title }}</a></strong> <span class="pill">{{ t.state }}</span>
       <small>{{ t.call_title }}, round {{ t.round_number }}{% if t.closes_at %}, due {{ t.closes_at.strftime('%Y-%m-%d %H:%M') }} UTC{% endif %}{% if t.status.value == 'closed' %} (closed){% endif %}</small>
     </li>
     {% else %}<li>Nothing to review right now.</li>{% endfor %}
