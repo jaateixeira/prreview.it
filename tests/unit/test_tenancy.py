@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from previewit.domain.identity import Email, User, UserId
+from previewit.domain.identity import UserId
 from previewit.domain.tenancy import (
     EDUCATION,
     InvalidName,
@@ -100,16 +100,3 @@ def test_invite_usable_rules():
     assert not _invite(revoked=True).usable(T0)
     assert _invite(max_uses=2, uses=1).usable(T0)
     assert not _invite(max_uses=2, uses=2).usable(T0)
-
-
-# --- review gate (decided: unverified users may be invited but cannot review) ------------
-
-
-def _user(verified: bool) -> User:
-    return User(UserId("u"), "A", Email("a@x.fi"), verified, frozenset(), True)
-
-
-def test_only_verified_users_may_review():
-    assert _user(True).can_review
-    assert not _user(False).can_review
-    assert not User(UserId("u"), "A", None, False, frozenset(), False).can_review

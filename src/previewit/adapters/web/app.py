@@ -25,6 +25,7 @@ from previewit.application.tenancy import (
     InvalidInvite,
     NotFound,
     TenancyService,
+    VerificationRequired,
 )
 from previewit.application.verification import VerificationService
 from previewit.domain.identity import Provider
@@ -95,6 +96,16 @@ def build_app(
     @app.exception_handler(Forbidden)
     async def forbidden(request: Request, _exc: Exception):
         return error_page(request, 403, "Not allowed", "You do not have permission to do that.")
+
+    @app.exception_handler(VerificationRequired)
+    async def verification_required(request: Request, _exc: Exception):
+        return error_page(
+            request,
+            403,
+            "Verify your email first",
+            "This site requires a verified email address for that. "
+            "Open your account page to verify yours, then try again.",
+        )
 
     @app.exception_handler(InvalidInvite)
     async def invalid_invite(request: Request, _exc: Exception):

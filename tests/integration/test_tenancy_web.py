@@ -2,6 +2,7 @@ import re
 
 from fastapi.testclient import TestClient
 
+from previewit.domain.policy import Action, VerificationPolicy
 from tests.integration.web_fakes import Harness, csrf_token, make_harness
 
 PASSWORD = "correct horse battery"
@@ -201,3 +202,11 @@ def test_the_invite_secret_is_shown_once():
     c.invite_link()
     again = c.teacher.get(c.space).text
     assert "/join/" not in again
+
+
+def test_the_policy_can_require_a_verified_email_to_create_an_organization():
+    h = make_harness(policy=VerificationPolicy(frozenset({Action.CREATE_ORGANIZATION})))
+    signup(h.client, "tina@x.fi", "Tina Teacher")
+    r = post(h.client, "/orgs", {"name": "School", "preset": "education"})
+    assert r.status_code == 403
+    assert "Verify your email" in r.text and "/account" in r.text

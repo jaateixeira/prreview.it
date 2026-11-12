@@ -27,6 +27,7 @@ from previewit.application.auth import AuthService
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
 from previewit.domain.identity import Email, ExternalClaims, Provider
+from previewit.domain.policy import DEFAULT_POLICY, VerificationPolicy
 
 
 class FakeProvider:
@@ -87,6 +88,7 @@ def make_harness(
     providers: Mapping[Provider, ExternalProvider] | None = None,
     *,
     base_url: str = "http://testserver",
+    policy: VerificationPolicy = DEFAULT_POLICY,
 ) -> Harness:
     ids = count(1)
     users = InMemoryUserRepository()
@@ -99,8 +101,10 @@ def make_harness(
     verification = VerificationService(
         users, InMemoryEmailTokenRepository(), outbox, base_url, clock
     )
-    tenancy = TenancyService(InMemoryTenancyRepository(), users, lambda: f"t{next(ids)}", clock)
-    settings = Settings(secret_key="test-secret", base_url=base_url)
+    tenancy = TenancyService(
+        InMemoryTenancyRepository(), users, lambda: f"t{next(ids)}", clock, policy=policy
+    )
+    settings = Settings(secret_key="test-secret", base_url=base_url, verification_policy=policy)
     app = build_app(settings, auth, verification, tenancy, dict(providers or {}))
     client = TestClient(app, base_url=base_url, follow_redirects=False)
     return Harness(client, auth, outbox, clock, app, base_url)
