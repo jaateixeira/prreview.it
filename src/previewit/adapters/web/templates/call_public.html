@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth-card">
+  <h1>{{ preview.title }}</h1>
+  <p><small>{{ preview.space_name }}, {{ preview.organization_name }}{% if preview.closes_at %}. Closes {{ preview.closes_at.strftime('%Y-%m-%d %H:%M') }} UTC{% endif %}</small></p>
+  {% if preview.description %}<p class="prose">{{ preview.description }}</p>{% endif %}
+  {% if not preview.accepting %}
+  <p class="notice" role="status">This call has closed. It no longer accepts work.</p>
+  {% elif request.state.user %}
+  <form method="post" action="/c/{{ call_id }}" hx-boost="false" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn" type="submit">Join and submit</button>
+  </form>
+  {% else %}
+  {% set back = ('/c/' ~ call_id) | urlencode %}
+  <p>To submit your work, create an account or log in. A name and a verified email are enough.</p>
+  <p><a class="btn" href="/signup?next={{ back }}">Create an account</a>
+     <a class="btn btn-secondary" href="/login?next={{ back }}">Log in</a></p>
+  {% endif %}
+</section>
+{% endblock %}

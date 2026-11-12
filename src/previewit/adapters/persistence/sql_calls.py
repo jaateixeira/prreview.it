@@ -20,6 +20,7 @@ from previewit.application.ports import DuplicateSubmission
 from previewit.domain.calls import (
     Artifact,
     Call,
+    CallAccess,
     CallId,
     Revision,
     RevisionInfo,
@@ -66,6 +67,7 @@ def _call(row: Row) -> Call:
         bool(row.published),
         UserId(row.created_by),
         RubricId(row.rubric_id) if row.rubric_id else None,
+        CallAccess(row.access),
     )
 
 
@@ -410,6 +412,7 @@ def _call_values(call: Call) -> dict[str, object]:
         "published": call.published,
         "created_by": call.created_by,
         "rubric_id": call.rubric_id,
+        "access": call.access.value,
     }
 
 

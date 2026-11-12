@@ -83,6 +83,13 @@ def build_app(
                 request.state.user = await run_in_threadpool(auth.get_user, user_id)  # type: ignore[arg-type]
         return await call_next(request)
 
+    @app.middleware("http")
+    async def keep_tokens_out_of_referrers(request: Request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith(("/s/", "/join/")):  # the secret is in the address
+            response.headers["Referrer-Policy"] = "same-origin"  # never to other sites
+        return response
+
     app.include_router(
         build_auth_router(
             auth=auth,

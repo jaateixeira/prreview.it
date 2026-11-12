@@ -218,7 +218,7 @@ def test_a_reviewer_opens_a_shared_submission_with_minimal_sign_up():
     assert reviewer.get(f"{c.space}/calls").status_code == 404
 
 
-def test_a_shared_call_is_visible_but_cannot_be_submitted_to():
+def test_a_call_link_makes_the_visitor_an_author_who_can_submit():
     c = Course()
     call = create_call(c, "Open call")
     link = share_link(c.teacher, call)
@@ -226,9 +226,9 @@ def test_a_shared_call_is_visible_but_cannot_be_submitted_to():
     signup(guest, "gus@x.fi", "Gus Guest", next_=link)
     assert post(guest, link, page=link).headers["location"] == call
     page = guest.get(call).text
-    assert "Open call" in page and 'name="text"' not in page
-    r = post(guest, f"{call}/submissions", {"title": "x", "text": "y"}, page="/spaces")
-    assert r.status_code == 403
+    assert "Open call" in page and 'name="text"' in page
+    r = post(guest, f"{call}/submissions", {"title": "x", "text": "y"}, page=call)
+    assert r.status_code == 303
 
 
 def test_revoked_and_bogus_links_show_a_clear_page():
@@ -252,3 +252,74 @@ def test_pages_require_login():
     for path in ("/calls/x", "/submissions/x", "/shared", "/spaces/x/calls"):
         r = client.get(path)
         assert r.status_code == 303 and r.headers["location"].startswith("/login")
+
+
+# --- call for authors: public or protected (ADR 0017) -----------------------------------------
+
+
+def call_id(call: str) -> str:
+    return call.rsplit("/", 1)[1]
+
+
+def test_calls_are_created_protected_and_the_organizer_can_open_them_up():
+    c = Course()
+    call = create_call(c, "Closed one")
+    page = c.teacher.get(call).text
+    assert 'name="access" value="protected" checked' in page
+    assert f"/c/{call_id(call)}" not in page  # a protected call has no plain address
+    r = post(
+        c.teacher,
+        f"{call}/edit",
+        {"title": "Closed one", "description": "", "published": "on", "access": "public"},
+        page=call,
+    )
+    assert r.status_code == 303
+    page = c.teacher.get(call).text
+    assert 'name="access" value="public" checked' in page
+    assert f"/c/{call_id(call)}" in page  # the address to send
+
+
+def test_a_public_call_page_is_readable_without_signing_in_and_leaks_nothing_else():
+    c = Course()
+    call = create_call(c, "Open essay", access="public", description="Write about peers.")
+    visitor = c.h.new_client()
+    r = visitor.get(f"/c/{call_id(call)}")
+    assert r.status_code == 200
+    assert "Open essay" in r.text and "Write about peers." in r.text
+    assert "Create an account" in r.text and "Software Engineering" in r.text
+    assert "tina@x.fi" not in r.text and "Tina" not in r.text  # no organizer or member names
+
+
+def test_signed_in_visitors_become_authors_through_the_plain_address():
+    c = Course()
+    call = create_call(c, "Open essay", access="public")
+    visitor = c.h.new_client()
+    address = f"/c/{call_id(call)}"
+    signup(visitor, "gus@x.fi", "Gus Guest", next_=address)
+    assert "Join and submit" in visitor.get(address).text
+    r = post(visitor, address, page=address)
+    assert r.status_code == 303 and r.headers["location"] == call
+    assert 'name="text"' in visitor.get(call).text
+    assert submit_text(visitor, call).status_code == 303
+
+
+def test_protected_draft_and_missing_calls_have_no_plain_address():
+    c = Course()
+    protected = create_call(c, "Closed")
+    draft = create_call(c, "Draft", access="public", published="")
+    visitor = c.h.new_client()
+    for path in (f"/c/{call_id(protected)}", f"/c/{call_id(draft)}", "/c/no-such-call"):
+        assert visitor.get(path).status_code == 404, path
+    signup(visitor, "zed@x.fi", "Zed")
+    for path in (f"/c/{call_id(protected)}", f"/c/{call_id(draft)}"):
+        assert post(visitor, path, page="/spaces").status_code == 404, path
+    assert visitor.get(protected).status_code == 404  # and Zed is still outside the space
+
+
+def test_pages_reached_by_a_token_do_not_leak_it_in_the_referrer():
+    c = Course()
+    call = create_call(c)
+    link = share_link(c.teacher, call)
+    page = c.h.client.get(link)
+    assert page.headers["referrer-policy"] == "same-origin"
+    assert c.h.client.get(c.invite_link()).headers["referrer-policy"] == "same-origin"

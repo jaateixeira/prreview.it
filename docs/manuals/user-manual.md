@@ -56,7 +56,7 @@ Use the hosted site. Sign-up asks for the minimum. Students and reviewers never 
 ## 5. Organizer
 
 1. **Create a space** and invite members by link. Tick the roles the link gives: organizer, author, reviewer (a participant is usually author and reviewer). Change a member's roles later on the space page. Form groups if groups submit or review. (M1)
-2. **Call for authors:** title, instructions, accepted type (text or PDF), deadline, and who may submit: public or protected. Publish, copy the link and send it. For a protected call you can revoke the link and send a new one. (M2, access modes in MA)
+2. **Call for authors:** title, instructions, accepted type (text or PDF), deadline, and who may submit: public or protected. Publish, copy the link and send it. For a protected call, create a link with a token for each group you invite; you can revoke it and send a new one. Anyone who opens the link and verifies their email becomes an author in the space, so give a large public call a space of its own. (M2, MA)
 3. **Build a rubric:** criteria with a scale (numeric, levels with descriptions, yes/no, free text) and optional weights. Rubrics are reusable. (M3)
 4. **Configure the round:** opening and closing time, anonymity, reviews per submission, allocation (random, round-robin or manual). (M4)
 5. **Allocate.** Previewit never allocates a party its own work or its own group's work, and balances the load. Adjust by hand if needed. (M4)
@@ -70,7 +70,7 @@ In Moodle, paste the space or call link into the course. Launch from Moodle with
 
 ## 6. Author (M2, M6)
 
-1. Open the call link you were sent (public or protected), verify your email, and submit your text or PDF. In a group, one member submits for all.
+1. Open the call link you were sent (public or protected), verify your email, press **Join and submit**, and submit your text or PDF. In a group, one member submits for all.
 2. When feedback is released, read comments in place on your work and the scores per criterion.
 3. Write a response to each review. If there is another round, submit a revision.
 

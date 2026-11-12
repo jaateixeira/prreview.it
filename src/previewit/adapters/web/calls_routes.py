@@ -24,7 +24,8 @@ from previewit.application.calls import (
     ShareLimitReached,
 )
 from previewit.application.rubrics import RubricsService
-from previewit.domain.calls import CallId, InvalidCall, ShareTarget, SubmissionId
+from previewit.application.tenancy import NotFound
+from previewit.domain.calls import CallAccess, CallId, InvalidCall, ShareTarget, SubmissionId
 from previewit.domain.identity import User
 from previewit.domain.tenancy import GroupId, SpaceId
 
@@ -42,6 +43,13 @@ def parse_deadline(value: str) -> datetime | None:
         return datetime.strptime(value, "%Y-%m-%dT%H:%M").replace(tzinfo=UTC)
     except ValueError:
         raise InvalidCall("Use a date and time like 2026-12-31 23:59.") from None
+
+
+def parse_access(value: str) -> CallAccess:
+    try:
+        return CallAccess(value or CallAccess.PROTECTED)
+    except ValueError:
+        raise InvalidCall("Choose who may submit: protected or public.") from None
 
 
 def _safe_filename(name: str | None) -> str:
@@ -96,6 +104,9 @@ def build_calls_router(*, calls: CallsService, rubrics: RubricsService, kit: Web
                 "rubric_choices": choices,
                 "error": error,
                 "new_link": new_link,
+                "public_url": f"{kit.settings.origin}/c/{call_id}"
+                if view.call.access is CallAccess.PUBLIC and view.call.published
+                else None,
                 "closes_value": view.call.closes_at.strftime("%Y-%m-%dT%H:%M")
                 if view.call.closes_at
                 else "",
@@ -187,12 +198,33 @@ def build_calls_router(*, calls: CallsService, rubrics: RubricsService, kit: Web
                     group_work=kit.text(form, "group_work") == "on",
                     closes_at=parse_deadline(kit.text(form, "closes_at")),
                     published=kit.text(form, "published") == "on",
+                    access=parse_access(kit.text(form, "access")),
                 )
             )
         except (InvalidCall, UnknownArtifactType) as e:
             message = str(e) if isinstance(e, InvalidCall) else "Choose a kind of work."
             return await run(calls_page, request, user, space_id, message, 400)
         return RedirectResponse(f"/calls/{call.id}", status_code=303)
+
+    @router.get("/c/{call_id}", response_class=HTMLResponse)
+    async def public_call(request: Request, call_id: str) -> Response:
+        preview = await run(calls.public_preview, CallId(call_id))
+        if preview is None:
+            raise NotFound
+        return kit.render(
+            request,
+            "call_public.html",
+            {"page_title": preview.title, "preview": preview, "call_id": call_id},
+        )
+
+    @router.post("/c/{call_id}")
+    async def open_public_call(request: Request, call_id: str) -> Response:
+        form = await kit.checked_form(request)
+        if form is None:
+            return kit.forbidden()
+        user = current_user(request)
+        item = await run(calls.open_public, user.id, CallId(call_id))
+        return RedirectResponse(f"/calls/{item.target_id}", status_code=303)
 
     @router.get("/calls/{call_id}", response_class=HTMLResponse)
     async def call_detail(request: Request, call_id: str) -> Response:
@@ -213,6 +245,9 @@ def build_calls_router(*, calls: CallsService, rubrics: RubricsService, kit: Web
                     description=kit.text(form, "description"),
                     closes_at=parse_deadline(kit.text(form, "closes_at")),
                     published=kit.text(form, "published") == "on",
+                    access=parse_access(kit.text(form, "access"))
+                    if kit.text(form, "access")
+                    else None,
                 )
             )
         except InvalidCall as e:

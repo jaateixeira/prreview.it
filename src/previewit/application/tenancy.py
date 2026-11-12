@@ -23,6 +23,7 @@ from previewit.domain.tenancy import (
     OrgRole,
     Permission,
     Preset,
+    Role,
     Roles,
     Space,
     SpaceId,
@@ -184,6 +185,20 @@ class TenancyService:
         member = self._member_or_raise(space_id, target)
         self._require_not_above(view, member)
         self._repo.remove_space_member(space_id, target)
+
+    def admit(self, actor: UserId, space_id: SpaceId, roles: Iterable[Role]) -> Space:
+        """Make `actor` a member through a link that someone vetted (a call for authors).
+
+        Existing members keep their roles: a link never demotes anyone."""
+        space = self._repo.get_space(space_id)
+        if space is None:
+            raise NotFound
+        if self._repo.space_member(space_id, actor) is not None:
+            return space
+        self._need_verified(actor, Action.JOIN)
+        self._repo.add_org_member(space.org_id, actor, OrgRole.MEMBER)
+        self._repo.add_space_member(SpaceMember(space.org_id, space.id, actor, frozenset(roles)))
+        return space
 
     # -- invites ------------------------------------------------------------------------------
 
