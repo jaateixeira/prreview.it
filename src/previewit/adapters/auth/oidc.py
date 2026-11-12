@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol
 
 from authlib.integrations.starlette_client import OAuth
+from loguru import logger
 from starlette.requests import Request
 from starlette.responses import Response
 
 from previewit.adapters.auth.base import AuthFailed
 from previewit.domain.identity import Email, ExternalClaims, InvalidEmail, Provider
-
-log = logging.getLogger(__name__)
 
 GOOGLE_METADATA_URL = "https://accounts.google.com/.well-known/openid-configuration"
 
@@ -67,7 +65,7 @@ async def exchange(app: OAuthApp, request: Request) -> Mapping[str, Any]:
     try:
         token = await app.authorize_access_token(request)
     except Exception as error:  # any failure in the provider round trip is a failed login
-        log.warning("OIDC code exchange failed: %s", error)
+        logger.warning("OIDC code exchange failed: {}", error)
         raise AuthFailed(str(error)) from error
     userinfo = token.get("userinfo")
     if not userinfo:

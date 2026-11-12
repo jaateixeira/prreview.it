@@ -5,7 +5,6 @@ See docs/auth/login-setup.md and previewit.example.toml.
 
 from __future__ import annotations
 
-import logging
 import secrets
 import tomllib
 from collections.abc import Mapping, Sequence
@@ -13,9 +12,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from previewit.domain.policy import DEFAULT_POLICY, VerificationPolicy, parse_actions
+from loguru import logger
 
-log = logging.getLogger("previewit.config")
+from previewit.adapters.logs import LEVELS
+from previewit.domain.policy import DEFAULT_POLICY, VerificationPolicy, parse_actions
 
 DEFAULT_CONFIG_PATHS = (Path("previewit.toml"), Path("/etc/previewit/previewit.toml"))
 
@@ -50,6 +50,8 @@ class Settings:
     haka_discovery_url: str | None = None
     haka_idp_entity_id: str | None = None
     verification_policy: VerificationPolicy = field(default=DEFAULT_POLICY)
+    cache_url: str | None = None  # valkey://host:6379/0; unset = in-process cache
+    log_level: str = "INFO"  # TRACE | DEBUG | INFO | WARNING | ERROR
 
     @property
     def https(self) -> bool:
@@ -92,6 +94,8 @@ class Settings:
             haka_discovery_url=_get(env, "HAKA_DISCOVERY_URL"),
             haka_idp_entity_id=_get(env, "HAKA_IDP_ENTITY_ID"),
             verification_policy=_policy(env),
+            cache_url=_get(env, "CACHE_URL"),
+            log_level=_log_level(env),
         )
 
 
@@ -105,6 +109,13 @@ def _apple_key(env: Mapping[str, str]) -> str | None:
         return inline
     path = _get(env, "APPLE_PRIVATE_KEY_FILE")
     return Path(path).read_text() if path else None
+
+
+def _log_level(env: Mapping[str, str]) -> str:
+    level = (_get(env, "LOG_LEVEL") or Settings.log_level).upper()
+    if level not in LEVELS:
+        raise ConfigError(f"PREVIEWIT_LOG_LEVEL must be one of {', '.join(LEVELS)}, not {level!r}")
+    return level
 
 
 def _policy(env: Mapping[str, str]) -> VerificationPolicy:
@@ -129,6 +140,8 @@ _KEYS: dict[tuple[str, str], str] = {
     ("mail", "smtp_password"): "SMTP_PASSWORD",
     ("mail", "smtp_security"): "SMTP_SECURITY",
     ("mail", "from"): "MAIL_FROM",
+    ("cache", "url"): "CACHE_URL",
+    ("logging", "level"): "LOG_LEVEL",
     ("login.google", "client_id"): "GOOGLE_CLIENT_ID",
     ("login.google", "client_secret"): "GOOGLE_CLIENT_SECRET",
     ("login.apple", "client_id"): "APPLE_CLIENT_ID",
@@ -155,6 +168,7 @@ _SECRET_KEYS = {
     "SMTP_PASSWORD",
     "GOOGLE_CLIENT_SECRET",
     "APPLE_PRIVATE_KEY",
+    "CACHE_URL",  # may carry a password
 }
 _POLICY_KEY = ("policy", "require_verified_email_for")
 _INT_KEYS = {"SMTP_PORT"}
@@ -264,4 +278,4 @@ def _warn_if_open(path: Path) -> None:
     except OSError:
         return
     if mode & 0o044:  # group- or world-readable
-        log.warning("%s holds secrets and is readable by others; run: chmod 600 %s", path, path)
+        logger.warning("{} holds secrets and is readable by others; run: chmod 600 {}", path, path)

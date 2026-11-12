@@ -11,6 +11,8 @@ The file is read from `PREVIEWIT_CONFIG` (an error if it is missing), else `./pr
 [database] # url
 [mail]     # smtp_host, smtp_port, smtp_user, smtp_password, smtp_security, from
 [policy]   # require_verified_email_for
+[cache]    # url
+[logging]  # level
 [login.google] [login.apple] [login.haka]
 ```
 
@@ -38,6 +40,19 @@ require_verified_email_for = ["review"]   # the default
 Signing in and receiving invitations are never gated. `[]` requires nothing; the same via the environment is `PREVIEWIT_REQUIRE_VERIFIED_EMAIL_FOR="review,submit"` (empty string for none).
 
 Email + password works with no configuration. Google, Apple and HAKA switch on when their variables are set. Setting only some of a provider's variables stops the server at startup and names what is missing.
+
+## Cache and logging
+
+| Variable | Default | Notes |
+|---|---|---|
+| `PREVIEWIT_CACHE_URL` | none | `valkey://host:6379/0` (also `redis://`, `rediss://`). Unset: an in-process cache. May contain a password, so keep the config file `chmod 600`. |
+| `PREVIEWIT_LOG_LEVEL` | `INFO` | `TRACE` (every cache hit and miss), `DEBUG`, `INFO`, `WARNING`, `ERROR`. |
+
+**Valkey** keeps a copy of the signed-in user for 60 seconds, because every request with a session cookie looks the user up. Changes (email verified, password, linked login) drop the copy at once. Valkey holds no secrets (never password hashes) and is never the source of truth: if it is down the site is slightly slower, not broken. Install the client with `uv sync --extra valkey` (`make install` already does). On Debian: `apt install valkey` (or a Redis-compatible server), bind it to localhost, and set a password if it is reachable from anywhere else.
+
+Run **one worker without Valkey**, or several workers **with** it: each worker's in-process cache is separate, so another worker could show an out-of-date user for up to 60 seconds. The server warns at start when `WEB_CONCURRENCY` is above 1 and no cache URL is set.
+
+**Logs** go to stderr through loguru, colourised on a terminal; uvicorn, SQLAlchemy and library logs are captured into the same stream. The start-up summary on stdout (address, database, cache, mail, login methods, plugins, policy) is drawn with rich and never prints a secret. For debugging use `PREVIEWIT_LOG_LEVEL=DEBUG`; `TRACE` adds per-request detail.
 
 ## Core
 

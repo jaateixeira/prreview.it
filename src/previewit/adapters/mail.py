@@ -2,22 +2,21 @@
 
 from __future__ import annotations
 
-import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
 from email.utils import make_msgid
 
-from previewit.application.ports import MailError
+from loguru import logger
 
-log = logging.getLogger(__name__)
+from previewit.application.ports import MailError
 
 
 class LogMailer:
     """Development default: print the mail instead of sending it."""
 
     def send(self, to: str, subject: str, body: str) -> None:
-        log.info("MAIL to=%s subject=%s\n%s", to, subject, body)
+        logger.info("MAIL to={} subject={}\n{}", to, subject, body)
 
 
 class SmtpMailer:

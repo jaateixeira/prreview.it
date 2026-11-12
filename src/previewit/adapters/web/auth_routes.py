@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Mapping
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from loguru import logger
 from starlette.concurrency import run_in_threadpool
 
 from previewit.adapters.auth.base import AuthFailed, ExternalProvider
@@ -28,8 +28,6 @@ from previewit.application.auth import (
 from previewit.application.ports import MailError
 from previewit.application.verification import SendResult, VerificationService
 from previewit.domain.identity import InvalidEmail, Provider, User
-
-log = logging.getLogger(__name__)
 
 PROVIDER_LABELS = {
     Provider.GOOGLE: "Google",
@@ -149,7 +147,7 @@ def build_auth_router(
         try:
             return await run_in_threadpool(verification.send, user)
         except (MailError, OSError):
-            log.warning("could not send verification mail", exc_info=True)
+            logger.opt(exception=True).warning("could not send verification mail")
             return None
 
     def account_page(request: Request, user: User, notice: str | None = None) -> Response:

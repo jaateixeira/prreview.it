@@ -5,13 +5,19 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import UTC, datetime
+from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import FastAPI
+from loguru import logger
 
 from previewit.adapters.auth.passwords import Argon2Hasher
 from previewit.adapters.auth.registry import build_providers
+from previewit.adapters.cache import ValkeyCache, make_cache
+from previewit.adapters.console import show_startup, startup_panel
 from previewit.adapters.entitlements import UnlimitedEntitlements
+from previewit.adapters.logs import configure_logging
 from previewit.adapters.mail import LogMailer, SmtpMailer
+from previewit.adapters.persistence.cached_users import DEFAULT_TTL_SECONDS, CachedUserRepository
 from previewit.adapters.persistence.engine import make_engine
 from previewit.adapters.persistence.migrate import upgrade
 from previewit.adapters.persistence.sql import (
@@ -33,21 +39,31 @@ from previewit.application.verification import VerificationService
 
 def create_app() -> FastAPI:
     settings = load_settings(os.environ)
+    configure_logging(settings.log_level)
+    cache = make_cache(settings.cache_url)
+    if settings.cache_url is None and int(os.environ.get("WEB_CONCURRENCY", "1") or 1) > 1:
+        logger.warning(
+            "several workers without a [cache] url: each keeps its own cache, so changes can "
+            "take up to {}s to show in other workers. Configure Valkey.",
+            DEFAULT_TTL_SECONDS,
+        )
     # Dev convenience: SQLite is migrated automatically. PostgreSQL is migrated explicitly.
     if settings.database_url.startswith("sqlite"):
         upgrade(settings.database_url)
     engine = make_engine(settings.database_url)
-    users = SqlUserRepository(engine)
+    users = CachedUserRepository(SqlUserRepository(engine), cache)
     auth = AuthService(
         users,
         Argon2Hasher(),
         lambda: uuid.uuid4().hex,
     )
     providers = build_providers(settings)
+    mailer = build_mailer(settings)
+    artifact_types = discover_artifact_types()
     verification = VerificationService(
         users,
         SqlEmailTokenRepository(engine),
-        build_mailer(settings),
+        mailer,
         settings.base_url,
         lambda: datetime.now(UTC),
     )
@@ -64,13 +80,33 @@ def create_app() -> FastAPI:
         tenancy,
         tenancy_repo,
         users,
-        ArtifactRegistry(discover_artifact_types()),
+        ArtifactRegistry(artifact_types),
         UnlimitedEntitlements(),
         lambda: uuid.uuid4().hex,
         lambda: datetime.now(UTC),
         policy=settings.verification_policy,
     )
+    registry = ArtifactRegistry(artifact_types)
+    mailer_mode = "SMTP" if isinstance(mailer, SmtpMailer) else "written to the log (development)"
+    show_startup(
+        startup_panel(
+            settings,
+            version=_version(),
+            cache_kind="Valkey" if isinstance(cache, ValkeyCache) else "in-process",
+            mail_mode=mailer_mode,
+            providers=[p.value for p in providers],
+            artifact_types=[t.key for t in registry.all()],
+            log_level=settings.log_level,
+        )
+    )
     return build_app(settings, auth, verification, tenancy, calls, providers)
+
+
+def _version() -> str:
+    try:
+        return version("previewit")
+    except PackageNotFoundError:
+        return "dev"
 
 
 def build_mailer(settings: Settings) -> Mailer:
