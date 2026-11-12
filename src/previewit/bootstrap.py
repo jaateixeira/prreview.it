@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from previewit.adapters.auth.passwords import Argon2Hasher
 from previewit.adapters.auth.registry import build_providers
+from previewit.adapters.entitlements import UnlimitedEntitlements
 from previewit.adapters.mail import LogMailer, SmtpMailer
 from previewit.adapters.persistence.engine import make_engine
 from previewit.adapters.persistence.migrate import upgrade
@@ -18,9 +19,13 @@ from previewit.adapters.persistence.sql import (
     SqlTenancyRepository,
     SqlUserRepository,
 )
+from previewit.adapters.persistence.sql_calls import SqlCallRepository
+from previewit.adapters.plugins import discover_artifact_types
 from previewit.adapters.settings import Settings, load_settings
 from previewit.adapters.web.app import build_app
+from previewit.application.artifacts import ArtifactRegistry
 from previewit.application.auth import AuthService
+from previewit.application.calls import CallsService
 from previewit.application.ports import Mailer
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
@@ -46,14 +51,26 @@ def create_app() -> FastAPI:
         settings.base_url,
         lambda: datetime.now(UTC),
     )
+    tenancy_repo = SqlTenancyRepository(engine)
     tenancy = TenancyService(
-        SqlTenancyRepository(engine),
+        tenancy_repo,
         users,
         lambda: uuid.uuid4().hex,
         lambda: datetime.now(UTC),
         policy=settings.verification_policy,
     )
-    return build_app(settings, auth, verification, tenancy, providers)
+    calls = CallsService(
+        SqlCallRepository(engine),
+        tenancy,
+        tenancy_repo,
+        users,
+        ArtifactRegistry(discover_artifact_types()),
+        UnlimitedEntitlements(),
+        lambda: uuid.uuid4().hex,
+        lambda: datetime.now(UTC),
+        policy=settings.verification_policy,
+    )
+    return build_app(settings, auth, verification, tenancy, calls, providers)
 
 
 def build_mailer(settings: Settings) -> Mailer:

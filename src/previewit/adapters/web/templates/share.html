@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth-card">
+  <h1>{{ preview.title }}</h1>
+  <p>{{ preview.shared_by }} shared this {{ 'call' if preview.target.value == 'call' else 'work' }} with you.</p>
+  {% if request.state.user %}
+  <form method="post" action="/s/{{ token }}" hx-boost="false" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn" type="submit">Open</button>
+  </form>
+  {% else %}
+  {% set back = ('/s/' ~ token) | urlencode %}
+  <p>Sign in to open it. A name and an email are enough.</p>
+  <p><a class="btn" href="/signup?next={{ back }}">Create an account</a>
+     <a class="btn btn-secondary" href="/login?next={{ back }}">Log in</a></p>
+  {% endif %}
+</section>
+{% endblock %}

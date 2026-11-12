@@ -16,10 +16,12 @@ from starlette.middleware.sessions import SessionMiddleware
 from previewit.adapters.auth.base import ExternalProvider
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.auth_routes import build_auth_router
+from previewit.adapters.web.calls_routes import build_calls_router
 from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.session import SESSION_COOKIE, SessionCodec
 from previewit.adapters.web.tenancy_routes import LoginRequired, build_tenancy_router
 from previewit.application.auth import AuthService
+from previewit.application.calls import CallsService, InvalidShare
 from previewit.application.tenancy import (
     Forbidden,
     InvalidInvite,
@@ -41,6 +43,7 @@ def build_app(
     auth: AuthService,
     verification: VerificationService,
     tenancy: TenancyService,
+    calls: CallsService,
     providers: Mapping[Provider, ExternalProvider],
 ) -> FastAPI:
     app = FastAPI(title="Previewit", docs_url=None, redoc_url=None)
@@ -83,6 +86,7 @@ def build_app(
 
     kit = WebKit(templates, settings)
     app.include_router(build_tenancy_router(tenancy=tenancy, kit=kit))
+    app.include_router(build_calls_router(calls=calls, kit=kit))
 
     def error_page(request: Request, status: int, title: str, message: str):
         return kit.render(
@@ -114,6 +118,15 @@ def build_app(
             404,
             "Invitation not valid",
             "This invitation link is invalid, expired or has been used up. Ask for a new one.",
+        )
+
+    @app.exception_handler(InvalidShare)
+    async def invalid_share(request: Request, _exc: Exception):
+        return error_page(
+            request,
+            404,
+            "Link not valid",
+            "This share link is invalid, expired or has been withdrawn. Ask for a new one.",
         )
 
     @app.exception_handler(LoginRequired)

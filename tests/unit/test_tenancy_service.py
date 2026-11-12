@@ -364,7 +364,8 @@ def test_inviting_can_require_a_verified_email():
     svc, ver, _unver = _policy_service(frozenset({Action.INVITE}))
     org = svc.create_organization(ver, "Org", "education")
     space = svc.create_space(ver, org.id, "Course")
-    assert svc.create_invite(ver, space.id)  # verified owner may
+    invite, _token = svc.create_invite(ver, space.id)  # verified owner may
+    assert invite.space_id == space.id
     strict, _ver2, unver2 = _policy_service(frozenset({Action.INVITE}))
     org2 = strict.create_organization(unver2, "Org", "education")
     space2 = strict.create_space(unver2, org2.id, "Course")

@@ -1,0 +1,24 @@
+{# Share links: `base` is /calls/<id> or /submissions/<id>. Needs csrf_token, shares, new_link. #}
+<h2>Review by link</h2>
+<p>Anyone with the link can read this. They sign in with a name and email, or Google or Apple, and nothing else.</p>
+{% if new_link %}
+<p class="notice" role="status">Copy this link now. It is shown only once:<br><code class="link">{{ new_link }}</code></p>
+{% endif %}
+<form method="post" action="{{ base }}/shares" hx-boost="false" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <button class="btn" type="submit">Create share link</button>
+</form>
+{% if shares %}
+<ul class="list">
+  {% for s in shares %}
+  <li>Link expires {{ s.expires_at.strftime('%Y-%m-%d') }}{% if s.revoked %} (revoked){% endif %}
+    {% if not s.revoked %}
+    <form method="post" action="{{ base }}/shares/{{ s.id }}/revoke" hx-boost="false" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-small btn-secondary" type="submit">Revoke</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

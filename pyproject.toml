@@ -30,6 +30,10 @@ postgres = [
     "psycopg[binary]>=3.2",
 ]
 
+[project.entry-points."previewit.plugins"]
+text = "previewit.plugins.text:TextArtifact"
+pdf = "previewit.plugins.pdf:PdfArtifact"
+
 [dependency-groups]
 dev = [
     "pytest>=8",
@@ -80,3 +84,9 @@ name = "Domain is pure (no framework imports)"
 type = "forbidden"
 source_modules = ["previewit.domain", "previewit.application"]
 forbidden_modules = ["fastapi", "starlette", "jinja2", "sqlalchemy", "uvicorn"]
+
+[[tool.importlinter.contracts]]
+name = "Plugins use the application and domain only"
+type = "forbidden"
+source_modules = ["previewit.plugins"]
+forbidden_modules = ["previewit.adapters", "previewit.bootstrap"]

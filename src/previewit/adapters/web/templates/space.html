@@ -5,6 +5,8 @@
   <h1>{{ view.space.name }}</h1>
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 
+  <p><a class="btn" href="/spaces/{{ view.space.id }}/calls">{{ word('calls') | capitalize }}</a></p>
+
   <h2>{{ word('members') | capitalize }}</h2>
   <ul class="list">
     {% for m in members %}

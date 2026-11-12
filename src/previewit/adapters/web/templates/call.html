@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+{% set call = view.call %}
+<section class="stack">
+  {% if view.space %}<p class="crumb"><a href="/spaces">Spaces</a> / <a href="/spaces/{{ view.space.id }}">{{ view.space.name }}</a> / <a href="/spaces/{{ view.space.id }}/calls">{{ word('calls') | capitalize }}</a></p>{% endif %}
+  <h1>{{ call.title }}</h1>
+  <p>
+    <span class="pill">{{ view.artifact_type.label }}</span>
+    {% if call.group_work %}<span class="pill">groups</span>{% endif %}
+    {% if not call.published %}<span class="pill">draft</span>{% endif %}
+    {% if call.closes_at %}<small>Closes {{ call.closes_at.strftime('%Y-%m-%d %H:%M') }} UTC</small>{% endif %}
+  </p>
+  {% if view.guest %}<p class="notice" role="status">You are viewing this through a share link.</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% if call.description %}<p class="prose">{{ call.description }}</p>{% endif %}
+
+  {% if not view.guest %}
+  <h2>Your {{ word('submissions') }}</h2>
+  {% if view.can_submit %}
+    {% for o in view.options %}
+      {% if o.existing %}
+      <p><a href="/submissions/{{ o.existing.id }}">{{ o.existing.title }}</a> <small>{{ o.label }}</small></p>
+      {% else %}
+      <form method="post" action="/calls/{{ call.id }}/submissions" enctype="multipart/form-data" hx-boost="false" class="card form">
+        <h3>Submit{% if call.group_work %} for {{ o.label }}{% endif %}</h3>
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        {% if call.group_work %}<input type="hidden" name="group_id" value="{{ o.party.group_id }}">{% endif %}
+        <label class="field">Title <input type="text" name="title" maxlength="200" required></label>
+        {% with t = view.artifact_type %}{% include "_upload_fields.html" %}{% endwith %}
+        <button class="btn" type="submit">Submit</button>
+      </form>
+      {% endif %}
+    {% else %}
+      <p>{% if call.group_work %}You are not in a group yet. Ask for one to be set up.{% else %}Nothing to submit.{% endif %}</p>
+    {% endfor %}
+  {% else %}
+    {% for s in view.mine %}<p><a href="/submissions/{{ s.submission.id }}">{{ s.submission.title }}</a> <small>{{ s.author_name }}</small></p>
+    {% else %}<p>This {{ word('call') }} is not accepting work.</p>{% endfor %}
+  {% endif %}
+  {% endif %}
+
+  {% if view.everyone is not none %}
+  <h2>All {{ word('submissions') }}</h2>
+  <ul class="list">
+    {% for s in view.everyone %}
+    <li><a href="/submissions/{{ s.submission.id }}">{{ s.submission.title }}</a> <small>{{ s.author_name }}, {{ s.revisions }} revision{{ '' if s.revisions == 1 else 's' }}</small></li>
+    {% else %}<li>Nothing submitted yet.</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if manage %}
+  <h2>Settings</h2>
+  <form method="post" action="/calls/{{ call.id }}/edit" hx-boost="false" class="card form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Title <input type="text" name="title" value="{{ call.title }}" maxlength="200" required></label>
+    <label class="field">Description <textarea name="description" rows="4" maxlength="5000">{{ call.description }}</textarea></label>
+    <label class="field">Closes (UTC, optional) <input type="datetime-local" name="closes_at" value="{{ closes_value }}"></label>
+    <label class="field"><span><input type="checkbox" name="published" {% if call.published %}checked{% endif %}> Visible to participants</span></label>
+    <button class="btn" type="submit">Save</button>
+  </form>
+  <form method="post" action="/calls/{{ call.id }}/delete" hx-boost="false" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-small btn-secondary" type="submit">Delete this {{ word('call') }}</button>
+  </form>
+  {% with base = '/calls/' ~ call.id %}{% include "_share_box.html" %}{% endwith %}
+  {% endif %}
+</section>
+{% endblock %}
