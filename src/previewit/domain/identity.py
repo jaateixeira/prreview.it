@@ -86,6 +86,11 @@ class User:
     identities: frozenset[IdentityKey]
     has_password: bool
 
+    @property
+    def can_review(self) -> bool:
+        """Unverified users may be invited and may submit, but cannot review."""
+        return self.email is not None and self.email_verified
+
 
 PasswordProblem = Literal["too_short", "too_long"]
 

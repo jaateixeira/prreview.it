@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack">
+  <p class="crumb"><a href="/spaces">Spaces</a> / {{ view.organization.name }}</p>
+  <h1>{{ view.space.name }}</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+  <h2>{{ word('members') | capitalize }}</h2>
+  <ul class="list">
+    {% for m in members %}
+    <li>
+      <strong>{{ m.display_name }}</strong> <small>{{ role_labels.get(m.role_key, m.role_key) }}</small>
+      {% if m.email %}<small>{{ m.email }}</small>{% endif %}
+      {% if 'members.manage' in perms and m.user_id != me %}
+      <form method="post" action="/spaces/{{ view.space.id }}/members/{{ m.user_id }}/role" hx-boost="false" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <select name="role" aria-label="Role of {{ m.display_name }}">
+          {% for r in roles %}<option value="{{ r.key }}" {% if r.key == m.role_key %}selected{% endif %}>{{ r.label }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-small" type="submit">Change role</button>
+      </form>
+      <form method="post" action="/spaces/{{ view.space.id }}/members/{{ m.user_id }}/remove" hx-boost="false" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-small btn-secondary" type="submit">Remove</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if 'members.invite' in perms %}
+  <h2>Invitation links</h2>
+  {% if new_link %}
+  <p class="notice" role="status">Copy this link now. It is shown only once:<br>
+    <code class="link">{{ new_link }}</code></p>
+  {% endif %}
+  <form method="post" action="/spaces/{{ view.space.id }}/invites" hx-boost="false" class="card form">
+    <h3>Create invite link</h3>
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Role
+      <select name="role">
+        {% for r in roles %}<option value="{{ r.key }}" {% if r.key == view.preset.default_role %}selected{% endif %}>{{ r.label }}</option>{% endfor %}
+      </select>
+    </label>
+    <label class="field">Valid for (days) <input type="number" name="days" value="7" min="1" max="90"></label>
+    <label class="field">Maximum uses (empty = unlimited) <input type="number" name="max_uses" min="1"></label>
+    <button class="btn" type="submit">Create invite link</button>
+  </form>
+  {% if invites %}
+  <ul class="list">
+    {% for i in invites %}
+    <li>
+      {{ role_labels.get(i.role_key, i.role_key) }} link, used {{ i.uses }}{% if i.max_uses %} of {{ i.max_uses }}{% endif %} times,
+      expires {{ i.expires_at.strftime('%Y-%m-%d') }}{% if i.revoked %} (revoked){% endif %}
+      {% if not i.revoked %}
+      <form method="post" action="/spaces/{{ view.space.id }}/invites/{{ i.id }}/revoke" hx-boost="false" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-small btn-secondary" type="submit">Revoke</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endif %}
+
+  <h2>{{ word('groups') | capitalize }}</h2>
+  {% for g in groups %}
+  <div class="card group">
+    <h3>{{ g.name }}</h3>
+    <ul class="list">
+      {% for uid in g.members %}
+      <li>{{ names.get(uid, 'Unknown') }}
+        {% if 'groups.manage' in perms %}
+        <form method="post" action="/spaces/{{ view.space.id }}/groups/{{ g.id }}/members/{{ uid }}/remove" hx-boost="false" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="btn btn-small btn-secondary" type="submit">Remove</button>
+        </form>
+        {% endif %}
+      </li>
+      {% else %}<li><small>No members yet.</small></li>{% endfor %}
+    </ul>
+    {% if 'groups.manage' in perms %}
+    <form method="post" action="/spaces/{{ view.space.id }}/groups/{{ g.id }}/members" hx-boost="false" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <select name="user_id" aria-label="Add to {{ g.name }}">
+        {% for m in members if m.user_id not in g.members %}<option value="{{ m.user_id }}">{{ m.display_name }}</option>{% endfor %}
+      </select>
+      <button class="btn btn-small" type="submit">Add</button>
+    </form>
+    <form method="post" action="/spaces/{{ view.space.id }}/groups/{{ g.id }}/rename" hx-boost="false" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="text" name="name" value="{{ g.name }}" maxlength="100" aria-label="New name for {{ g.name }}">
+      <button class="btn btn-small btn-secondary" type="submit">Rename</button>
+    </form>
+    <form method="post" action="/spaces/{{ view.space.id }}/groups/{{ g.id }}/delete" hx-boost="false" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-small btn-secondary" type="submit">Delete group</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}<p>No {{ word('groups') }} yet.</p>{% endfor %}
+  {% if 'groups.manage' in perms %}
+  <form method="post" action="/spaces/{{ view.space.id }}/groups" hx-boost="false" class="card form">
+    <h3>Create group</h3>
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Name <input type="text" name="name" maxlength="100" required></label>
+    <button class="btn" type="submit">Create group</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}
