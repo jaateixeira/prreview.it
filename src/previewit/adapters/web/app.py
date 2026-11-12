@@ -18,6 +18,7 @@ from previewit.adapters.settings import Settings
 from previewit.adapters.web.auth_routes import build_auth_router
 from previewit.adapters.web.calls_routes import build_calls_router
 from previewit.adapters.web.docs_routes import build_docs_router
+from previewit.adapters.web.invitations_routes import build_invitations_router
 from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.reviews_routes import build_reviews_router
 from previewit.adapters.web.rounds_routes import build_rounds_router
@@ -26,6 +27,11 @@ from previewit.adapters.web.session import SESSION_COOKIE, SessionCodec
 from previewit.adapters.web.tenancy_routes import LoginRequired, build_tenancy_router
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService, InvalidShare
+from previewit.application.invitations import (
+    InvalidInvitationLink,
+    InvitationsService,
+    WrongEmail,
+)
 from previewit.application.reviews import ReviewsService
 from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
@@ -54,6 +60,7 @@ def build_app(
     rubrics: RubricsService,
     rounds: RoundsService,
     reviews: ReviewsService,
+    invitations: InvitationsService,
     providers: Mapping[Provider, ExternalProvider],
 ) -> FastAPI:
     app = FastAPI(title="Previewit", docs_url=None, redoc_url=None)
@@ -86,7 +93,7 @@ def build_app(
     @app.middleware("http")
     async def keep_tokens_out_of_referrers(request: Request, call_next):
         response = await call_next(request)
-        if request.url.path.startswith(("/s/", "/join/")):  # the secret is in the address
+        if request.url.path.startswith(("/s/", "/join/", "/i/")):  # the secret is in the address
             response.headers["Referrer-Policy"] = "same-origin"  # never to other sites
         return response
 
@@ -106,7 +113,10 @@ def build_app(
     app.include_router(build_tenancy_router(tenancy=tenancy, kit=kit))
     app.include_router(build_calls_router(calls=calls, rubrics=rubrics, kit=kit))
     app.include_router(build_rubrics_router(rubrics=rubrics, kit=kit))
-    app.include_router(build_rounds_router(rounds=rounds, calls=calls, kit=kit))
+    app.include_router(
+        build_rounds_router(rounds=rounds, calls=calls, invitations=invitations, kit=kit)
+    )
+    app.include_router(build_invitations_router(invitations=invitations, kit=kit))
     app.include_router(build_reviews_router(reviews=reviews, kit=kit))
 
     def error_page(request: Request, status: int, title: str, message: str):
@@ -148,6 +158,26 @@ def build_app(
             404,
             "Link not valid",
             "This share link is invalid, expired or has been withdrawn. Ask for a new one.",
+        )
+
+    @app.exception_handler(InvalidInvitationLink)
+    async def invalid_invitation(request: Request, _exc: Exception):
+        return error_page(
+            request,
+            404,
+            "Invitation not valid",
+            "This invitation is invalid, expired, withdrawn or its round has closed. "
+            "Ask the organizer for a new one.",
+        )
+
+    @app.exception_handler(WrongEmail)
+    async def wrong_email(request: Request, exc: Exception):
+        hint = exc.hint if isinstance(exc, WrongEmail) else ""
+        return error_page(
+            request,
+            403,
+            "This invitation is for another address",
+            f"It was sent to {hint}. Log out and sign in with that email address to open it.",
         )
 
     @app.exception_handler(LoginRequired)

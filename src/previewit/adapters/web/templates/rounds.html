@@ -65,6 +65,38 @@
       </form>
     </details>
 
+    {% if new_link and new_link_round == r.id %}
+    <p class="notice" role="status">Send this link to the reviewer. It is shown only once:<br><code class="link">{{ new_link }}</code></p>
+    {% endif %}
+    <details {% if new_link_round == r.id or invited[r.id] %}open{% endif %}>
+      <summary>Invite a reviewer by email</summary>
+      <form method="post" action="/rounds/{{ r.id }}/invitations" hx-boost="false" class="form">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <label class="field">Email address <input type="email" name="email" required maxlength="320"></label>
+        {% if submissions %}
+        <fieldset class="field">
+          <legend>Work to review (optional)</legend>
+          {% for s in submissions %}<label><input type="checkbox" name="submission_id" value="{{ s.submission.id }}"> {{ s.submission.title }} ({{ s.author_name }})</label>{% endfor %}
+        </fieldset>
+        {% endif %}
+        <button class="btn btn-small" type="submit">Create invitation for round {{ r.number }}</button>
+      </form>
+      {% if invited[r.id] %}
+      <ul class="list">
+        {% for i in invited[r.id] %}
+        <li>{{ i.email }}: {{ i.status }}{% if i.accepted_by %} ({{ i.accepted_by }}){% endif %}{% if i.work %}, {{ i.work | length }} to review{% endif %}
+          {% if i.status == 'waiting' %}
+          <form method="post" action="/rounds/{{ r.id }}/invitations/{{ i.id }}/revoke" hx-boost="false" class="inline">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <button class="btn btn-small btn-secondary" type="submit">Revoke</button>
+          </form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </details>
+
     <details>
       <summary>Change round {{ r.number }}</summary>
       <form method="post" action="/rounds/{{ r.id }}/edit" hx-boost="false" class="form">

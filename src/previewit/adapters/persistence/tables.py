@@ -326,6 +326,41 @@ review_tasks = Table(
     Index("ix_review_tasks_reviewer", "space_id", "reviewer_kind", "reviewer_id"),
 )
 
+invitations = Table(
+    "invitations",
+    metadata,
+    Column("id", String(64), primary_key=True),  # SHA-256 of the secret in the link
+    Column("org_id", String(64), nullable=False),
+    Column("space_id", String(64), nullable=False),
+    Column("round_id", String(64), nullable=False),
+    Column("email", String(320), nullable=False),
+    Column("created_by", String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("revoked", Boolean, nullable=False, default=False),
+    Column("accepted_by", String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+    ForeignKeyConstraint(
+        ["round_id", "org_id"], ["review_rounds.id", "review_rounds.org_id"], ondelete="CASCADE"
+    ),
+    UniqueConstraint("id", "org_id", name="uq_invitations_id_org"),
+    Index("ix_invitations_round_id", "round_id"),
+    Index("ix_invitations_created_by", "created_by"),
+)
+
+invitation_submissions = Table(
+    "invitation_submissions",
+    metadata,
+    Column("invitation_id", String(64), primary_key=True),
+    Column("submission_id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("position", Integer, nullable=False),  # the order the organizer chose
+    ForeignKeyConstraint(
+        ["invitation_id", "org_id"], ["invitations.id", "invitations.org_id"], ondelete="CASCADE"
+    ),
+    ForeignKeyConstraint(
+        ["submission_id", "org_id"], ["submissions.id", "submissions.org_id"], ondelete="CASCADE"
+    ),
+)
+
 
 # --- reviews, their edit trail and annotations ------------------------------------------------
 

@@ -20,6 +20,7 @@ from previewit.domain.calls import (
     SubmissionId,
 )
 from previewit.domain.identity import Email, IdentityKey, User, UserId
+from previewit.domain.invitations import Invitation
 from previewit.domain.party import Party
 from previewit.domain.reviews import Annotation, AnnotationId, Review, ReviewEdit, ReviewId
 from previewit.domain.rounds import ReviewRound, ReviewTask, RoundId, TaskId
@@ -338,6 +339,19 @@ class RoundRepository(Protocol):
     def tasks_for_parties(self, space_id: SpaceId, parties: Sequence[Party]) -> list[ReviewTask]:
         """Tasks in the space whose reviewer is one of these parties."""
         ...
+
+    # Reviewer invitations (ADR 0017). `Invitation.id` is the hash of the secret.
+    def add_invitation(self, invitation: Invitation) -> None: ...
+
+    def get_invitation(self, invitation_id: str) -> Invitation | None: ...
+
+    def update_invitation(self, invitation: Invitation) -> None:
+        """Changes `revoked` and `accepted_by`; the rest of an invitation never changes."""
+        ...
+
+    def invitations_of_round(self, round_id: RoundId) -> list[Invitation]: ...
+
+    def count_invitations(self, created_by: UserId) -> int: ...
 
 
 class ReviewRepository(Protocol):

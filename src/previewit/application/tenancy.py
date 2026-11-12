@@ -186,14 +186,22 @@ class TenancyService:
         self._require_not_above(view, member)
         self._repo.remove_space_member(space_id, target)
 
-    def admit(self, actor: UserId, space_id: SpaceId, roles: Iterable[Role]) -> Space:
-        """Make `actor` a member through a link that someone vetted (a call for authors).
+    def admit(
+        self, actor: UserId, space_id: SpaceId, roles: Iterable[Role], *, extend: bool = False
+    ) -> Space:
+        """Make `actor` a member through a link that someone vetted (a call for authors, an
+        invitation to review).
 
-        Existing members keep their roles: a link never demotes anyone."""
+        Existing members keep their roles: a link never demotes anyone. With `extend`, an
+        existing member also gains the roles they lack (a reviewer invitation to an author)."""
         space = self._repo.get_space(space_id)
         if space is None:
             raise NotFound
-        if self._repo.space_member(space_id, actor) is not None:
+        member = self._repo.space_member(space_id, actor)
+        if member is not None:
+            wanted = frozenset(roles)
+            if extend and not wanted <= member.roles:
+                self._repo.set_space_member_roles(space_id, actor, member.roles | wanted)
             return space
         self._need_verified(actor, Action.JOIN)
         self._repo.add_org_member(space.org_id, actor, OrgRole.MEMBER)

@@ -98,6 +98,14 @@ def party_key(party: Party) -> str:
     return f"user:{party.user_id}" if isinstance(party, UserParty) else f"group:{party.group_id}"
 
 
+def slot_of(party: Party, groups: dict[GroupId, frozenset[UserId]]) -> Slot:
+    """The people behind a party, for conflict checks."""
+    if isinstance(party, UserParty):
+        return Slot(party_key(party), frozenset({party.user_id}))
+    members = groups.get(GroupId(party.group_id), frozenset())
+    return Slot(party_key(party), frozenset(str(m) for m in members))
+
+
 class RoundsService:
     def __init__(
         self,
@@ -402,10 +410,7 @@ class RoundsService:
 
     @staticmethod
     def _slot(party: Party, groups: dict[GroupId, frozenset[UserId]]) -> Slot:
-        if isinstance(party, UserParty):
-            return Slot(party_key(party), frozenset({party.user_id}))
-        members = groups.get(GroupId(party.group_id), frozenset())
-        return Slot(party_key(party), frozenset(str(m) for m in members))
+        return slot_of(party, groups)
 
     def _seed(self) -> int:
         return int.from_bytes(hashlib.sha256(self._new_id().encode()).digest()[:4], "big")

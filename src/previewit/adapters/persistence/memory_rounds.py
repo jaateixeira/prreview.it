@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 from previewit.application.ports import DuplicateRound, DuplicateTask
 from previewit.domain.calls import CallId
+from previewit.domain.identity import UserId
+from previewit.domain.invitations import Invitation
 from previewit.domain.party import Party
 from previewit.domain.rounds import ReviewRound, ReviewTask, RoundId, TaskId
 from previewit.domain.tenancy import SpaceId
@@ -15,6 +18,7 @@ class InMemoryRoundRepository:
     def __init__(self) -> None:
         self._rounds: dict[RoundId, ReviewRound] = {}
         self._tasks: dict[TaskId, ReviewTask] = {}
+        self._invitations: dict[str, Invitation] = {}
 
     def add_round(self, round_: ReviewRound) -> None:
         if any(
@@ -32,6 +36,8 @@ class InMemoryRoundRepository:
 
     def delete_round(self, round_id: RoundId) -> None:
         self._rounds.pop(round_id, None)
+        for iid in [i.id for i in self._invitations.values() if i.round_id == round_id]:
+            del self._invitations[iid]
         for tid in [t.id for t in self._tasks.values() if t.round_id == round_id]:
             del self._tasks[tid]
 
@@ -66,6 +72,25 @@ class InMemoryRoundRepository:
     def tasks_for_parties(self, space_id: SpaceId, parties: Sequence[Party]) -> list[ReviewTask]:
         wanted = set(parties)
         return [t for t in self._tasks.values() if t.space_id == space_id and t.reviewer in wanted]
+
+    def add_invitation(self, invitation: Invitation) -> None:
+        self._invitations[invitation.id] = invitation
+
+    def get_invitation(self, invitation_id: str) -> Invitation | None:
+        return self._invitations.get(invitation_id)
+
+    def update_invitation(self, invitation: Invitation) -> None:
+        current = self._invitations.get(invitation.id)
+        if current is not None:  # only these two ever change
+            self._invitations[invitation.id] = replace(
+                current, revoked=invitation.revoked, accepted_by=invitation.accepted_by
+            )
+
+    def invitations_of_round(self, round_id: RoundId) -> list[Invitation]:
+        return [i for i in self._invitations.values() if i.round_id == round_id]
+
+    def count_invitations(self, created_by: UserId) -> int:
+        return sum(1 for i in self._invitations.values() if i.created_by == created_by)
 
 
 def _number(round_: ReviewRound) -> int:

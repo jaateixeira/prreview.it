@@ -24,7 +24,7 @@ sequenceDiagram
     O->>P: Revoke or replace the token (protected calls)
 ```
 
-## Process 2: organizing peer review (M3, M4, step D)
+## Process 2: organizing peer review (M3, M4, step D done)
 
 ```mermaid
 sequenceDiagram
@@ -43,7 +43,7 @@ sequenceDiagram
     O->>P: Release feedback, open the next round
 ```
 
-## Process 3: reviewing by invitation (M5, step D)
+## Process 3: reviewing by invitation (M5, step D done)
 
 ```mermaid
 sequenceDiagram
@@ -51,10 +51,11 @@ sequenceDiagram
     participant P as Previewit
 
     R->>P: Open invitation link
-    P->>P: Check token (revoked, expired or wrong: refuse)
-    P-->>R: Verify the invited email
-    R->>P: Verify
-    P->>P: Give the reviewer role in the space, drop the token from the URL
+    P->>P: Check token (revoked, expired, closed round or wrong: refuse)
+    P-->>R: Sign up or log in with the invited email, confirm it
+    R->>P: Open the link again, press Start reviewing
+    P->>P: Check the verified email is the invited one
+    P->>P: Give the reviewer role, create the review tasks, drop the token from the URL
     P-->>R: My reviews: the allocated work
     loop For each task
         R->>P: Annotate and score (autosave)

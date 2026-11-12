@@ -32,15 +32,15 @@ Status column:
 | **Role** | One of the fixed roles in a Space: **organizer**, **author**, **reviewer**. A Member holds a set of them. **Auditor** is reserved (Deferred). Presets only rename them. | Core | `Role` | teacher, author, reviewer | preset-defined roles, assistant |
 | **Organizer** | The role that calls for authors and calls for reviewers, builds rubrics, runs Rounds and reads everything. The Organization owner is organizer in every Space. | Core | `Role.ORGANIZER`, `Permission` | teacher | moderator, facilitator, chair (see section 5) |
 | **Call** (for authors) | The Organizer's invitation to submit work, with a deadline, an artifact type and optionally a Rubric. Sent as a link. Access is **public** (plain URL) or **protected** (URL with a token). *Call* alone always means this one. | Core (access modes done) | `Call`, `CallId` | assignment | task, activity |
-| **Call for reviewers** | The Organizer's invitation to review the submitted work of a Round: a set of Invitations. | Planned (step D) | (a set of `Invitation`) | (none) | review assignment |
-| **Invitation** | One personal link with a token for one invited reviewer (an email address), bound to that address, carrying the Submissions to review. | Planned (step D) | `Invitation` | (none) | invite (an invite adds a Member) |
+| **Call for reviewers** | The Organizer's invitation to review the submitted work of a Round: a set of Invitations. | Core | (a set of `Invitation`) | (none) | review assignment |
+| **Invitation** | One personal link with a token for one invited reviewer (an email address), bound to that address, carrying the Submissions to review. | Core | `Invitation` | (none) | invite (an invite adds a Member) |
 | **Token** | The random secret in a link. At least 128 bits, one purpose, revocable. | Core (share links), Planned (C, D) | | | key, password |
 | **Submission** | What a Party hands in to a Call. It is the **review unit**: one Submission is reviewed as a whole. | Core | `Submission` | (none) | work product, review object, review item, deliverable |
 | **Revision** | A numbered, immutable version of a Submission. Reviews and Annotations are pinned to one Revision. | Core | `Revision` | (none) | version (ambiguous with `version` on a Review) |
 | **Artifact** | The content of a Revision, of a type supplied by a plugin (text, PDF). | Core | `Artifact`, `ArtifactType` | (none) | attachment |
 | **Review** | The reviewer Party's response to one Submission: answers to the Rubric plus Annotations. | Core | `Review` | (none) | feedback (that is what an author *receives*), evaluation |
 | **Reviewer** / **Author** | Two roles (above) and, per task, two *relations* a Party has to a Submission. The same Party can be author of one Submission and reviewer of another. | Core | `ReviewTask.reviewer`, `Submission.author` | (none) | grader, evaluator, student author |
-| **Share link** | A link that gives access to one Call or Submission with minimal sign-up. The author is the sender; reconciled with Invitations in step D. | Core | `ShareLink` | (none) | invite (an invite adds a Member) |
+| **Share link** | A link that gives access to one Call or Submission with minimal sign-up. The author is the sender; an Invitation is personal and bound to an email; a share link is not. | Core | `ShareLink` | (none) | invite (an invite adds a Member) |
 | **Preset** | A bundle of vocabulary, roles, rubric templates and defaults for a kind of organization. | Core | `Preset` | (Education) | mode, template (a template is a Rubric template) |
 
 **The three processes** are the way to explain Previewit. Each is a flow between the three roles:

@@ -1,6 +1,6 @@
-"""Migration 0009 turns preset roles into the three fixed roles and back (ADR 0017)."""
+"""Migrations 0009-0011: fixed roles, call access and reviewer invitations (ADR 0017)."""
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 
 from previewit.adapters.persistence.migrate import downgrade, upgrade
 
@@ -93,3 +93,17 @@ def test_existing_calls_become_protected_and_the_column_can_be_dropped(tmp_path)
     downgrade(url, "0009")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT title FROM calls")).scalar_one() == "T"
+
+
+def test_invitation_tables_are_added_and_removed(tmp_path):
+    url = f"sqlite:///{tmp_path / 'i.db'}"
+    upgrade(url, "0010")
+    engine = create_engine(url)
+    assert not {"invitations", "invitation_submissions"} & set(inspect(engine).get_table_names())
+    upgrade(url)
+    names = set(inspect(engine).get_table_names())
+    assert {"invitations", "invitation_submissions"} <= names
+    downgrade(url, "0010")
+    assert not {"invitations", "invitation_submissions"} & set(
+        inspect(create_engine(url)).get_table_names()
+    )

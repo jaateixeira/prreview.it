@@ -15,10 +15,12 @@ from starlette.responses import Response
 from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.tenancy_routes import current_user
 from previewit.application.allocation import UnknownStrategy
-from previewit.application.calls import CallsService
+from previewit.application.calls import CallsService, ShareLimitReached
+from previewit.application.invitations import InvitationsService
 from previewit.application.rounds import RoundsService
 from previewit.domain.calls import CallId, SubmissionId
 from previewit.domain.identity import User
+from previewit.domain.invitations import InvalidInvitation
 from previewit.domain.party import GroupParty, Party, UserParty
 from previewit.domain.rounds import DEFAULT_ANONYMITY, InvalidRound, RoundId, TaskId
 from previewit.domain.tenancy import SpaceId
@@ -55,7 +57,9 @@ def parse_party(value: str) -> Party:
     raise InvalidRound("Choose who should review.")
 
 
-def build_rounds_router(*, rounds: RoundsService, calls: CallsService, kit: WebKit) -> APIRouter:
+def build_rounds_router(
+    *, rounds: RoundsService, calls: CallsService, invitations: InvitationsService, kit: WebKit
+) -> APIRouter:
     router = APIRouter()
     run = run_in_threadpool
 
@@ -66,12 +70,14 @@ def build_rounds_router(*, rounds: RoundsService, calls: CallsService, kit: WebK
         *,
         error: str | None = None,
         notice: str | None = None,
+        new_link: tuple[str, str] | None = None,
         status: int = 200,
     ) -> Response:
         call_view = calls.call_view(user.id, CallId(call_id))
         call = call_view.call
         views = rounds.rounds(user.id, CallId(call_id))
         options = {v.round.id: rounds.reviewer_options(user.id, v.round.id) for v in views}
+        invited = {v.round.id: invitations.invitations(user.id, v.round.id) for v in views}
         return kit.render(
             request,
             "rounds.html",
@@ -83,6 +89,9 @@ def build_rounds_router(*, rounds: RoundsService, calls: CallsService, kit: WebK
                 "anonymity_options": rounds.anonymity_options(),
                 "default_anonymity": DEFAULT_ANONYMITY,
                 "options": options,
+                "invited": invited,
+                "new_link": new_link[1] if new_link else None,
+                "new_link_round": new_link[0] if new_link else None,
                 "submissions": call_view.everyone or [],
                 "next_number": len(views) + 1,
                 "error": error,
@@ -194,5 +203,35 @@ def build_rounds_router(*, rounds: RoundsService, calls: CallsService, kit: WebK
     async def remove_task(request: Request, round_id: str, task_id: str) -> Response:
         call_id = await run(call_of_sync, current_user(request), round_id)
         return await act(request, call_id, lambda u, _f: rounds.remove_task(u.id, TaskId(task_id)))
+
+    @router.post("/rounds/{round_id}/invitations")
+    async def invite_reviewer(request: Request, round_id: str) -> Response:
+        """The call for reviewers: one personal link per reviewer, shown once."""
+        form = await kit.checked_form(request)
+        if form is None:
+            return kit.forbidden()
+        user = current_user(request)
+        call_id = await run(call_of_sync, user, round_id)
+        work = [SubmissionId(v) for v in form.getlist("submission_id") if isinstance(v, str)]
+        try:
+            _, token = await run(
+                invitations.invite, user.id, RoundId(round_id), kit.text(form, "email"), work
+            )
+        except InvalidInvitation as e:
+            return await run(page, request, user, call_id, error=str(e), status=400)
+        except ShareLimitReached:
+            message = "You have reached the sharing limit of your plan."
+            return await run(page, request, user, call_id, error=message, status=403)
+        link = f"{kit.settings.origin}/i/{token}"
+        return await run(page, request, user, call_id, new_link=(round_id, link))
+
+    @router.post("/rounds/{round_id}/invitations/{invitation_id}/revoke")
+    async def revoke_invitation(request: Request, round_id: str, invitation_id: str) -> Response:
+        call_id = await run(call_of_sync, current_user(request), round_id)
+        return await act(
+            request,
+            call_id,
+            lambda u, _f: invitations.revoke(u.id, RoundId(round_id), invitation_id),
+        )
 
     return router
