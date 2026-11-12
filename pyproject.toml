@@ -66,6 +66,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/previewit"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"docs/glossary.md" = "previewit/internal_docs/glossary.md"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["acceptance: browser-based end-to-end tests (Playwright)"]
