@@ -17,6 +17,7 @@ from previewit.adapters.settings import Settings
 from previewit.adapters.web.auth_routes import build_auth_router
 from previewit.adapters.web.session import SESSION_COOKIE, SessionCodec
 from previewit.application.auth import AuthService
+from previewit.application.verification import VerificationService
 from previewit.domain.identity import Provider
 
 HERE = Path(__file__).parent
@@ -28,6 +29,7 @@ SOURCE_URL = "https://github.com/jaateixeira/prreview.it"
 def build_app(
     settings: Settings,
     auth: AuthService,
+    verification: VerificationService,
     providers: Mapping[Provider, ExternalProvider],
 ) -> FastAPI:
     app = FastAPI(title="Previewit", docs_url=None, redoc_url=None)
@@ -59,7 +61,12 @@ def build_app(
 
     app.include_router(
         build_auth_router(
-            auth=auth, providers=providers, settings=settings, templates=templates, codec=codec
+            auth=auth,
+            verification=verification,
+            providers=providers,
+            settings=settings,
+            templates=templates,
+            codec=codec,
         )
     )
 

@@ -11,6 +11,13 @@
     <dt>Sign-in methods</dt>
     <dd>{% if account.has_password %}Password{% if linked %}, {% endif %}{% endif %}{{ linked | join(", ") }}</dd>
   </dl>
+  {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+  {% if account.email and not account.email_verified %}
+  <form method="post" action="/account/verify/resend" hx-boost="false" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-secondary" type="submit">Resend verification email</button>
+  </form>
+  {% endif %}
   <form method="post" action="/logout" hx-boost="false">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <button class="btn btn-secondary" type="submit">Log out</button>

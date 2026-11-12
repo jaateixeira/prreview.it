@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Engine, and_, insert, select, update
+from datetime import UTC, datetime
+
+from sqlalchemy import Engine, and_, delete, func, insert, select, update
 from sqlalchemy.engine import Connection, Row
 from sqlalchemy.exc import IntegrityError
 
-from previewit.adapters.persistence.tables import external_identities, users
-from previewit.application.ports import DuplicateEmail, DuplicateIdentity
+from previewit.adapters.persistence.tables import (
+    email_verifications,
+    external_identities,
+    users,
+)
+from previewit.application.ports import DuplicateEmail, DuplicateIdentity, EmailToken
 from previewit.domain.identity import Email, IdentityKey, Provider, User, UserId
 
 
@@ -84,6 +90,15 @@ class SqlUserRepository:
         except IntegrityError:
             raise DuplicateIdentity from None
 
+    def mark_email_verified(self, user_id: UserId, email: Email) -> bool:
+        with self._engine.begin() as conn:
+            result = conn.execute(
+                update(users)
+                .where(users.c.id == user_id, users.c.email == email.value)
+                .values(email_verified=True)
+            )
+            return result.rowcount == 1
+
     def set_password_hash(self, user_id: UserId, password_hash: str) -> None:
         with self._engine.begin() as conn:
             conn.execute(
@@ -127,3 +142,64 @@ def _is(key: IdentityKey):
 
 def _values(key: IdentityKey, user_id: str) -> dict[str, str]:
     return {"provider": key.provider.value, "subject": key.subject, "user_id": user_id}
+
+
+class SqlEmailTokenRepository:
+    def __init__(self, engine: Engine) -> None:
+        self._engine = engine
+
+    def add(
+        self,
+        token_hash: str,
+        user_id: UserId,
+        email: Email,
+        created_at: datetime,
+        expires_at: datetime,
+    ) -> None:
+        with self._engine.begin() as conn:
+            conn.execute(
+                insert(email_verifications).values(
+                    token_hash=token_hash,
+                    user_id=user_id,
+                    email=email.value,
+                    created_at=created_at,
+                    expires_at=expires_at,
+                )
+            )
+
+    def delete_for_user(self, user_id: UserId) -> None:
+        with self._engine.begin() as conn:
+            conn.execute(
+                delete(email_verifications).where(email_verifications.c.user_id == user_id)
+            )
+
+    def last_created_at(self, user_id: UserId) -> datetime | None:
+        with self._engine.connect() as conn:
+            value = conn.execute(
+                select(func.max(email_verifications.c.created_at)).where(
+                    email_verifications.c.user_id == user_id
+                )
+            ).scalar_one_or_none()
+        # SQLite returns naive datetimes; we always store UTC.
+        return value.replace(tzinfo=UTC) if value is not None and value.tzinfo is None else value
+
+    def consume(self, token_hash: str, now: datetime) -> EmailToken | None:
+        # One UPDATE ... WHERE unused AND unexpired: two concurrent clicks cannot both win.
+        with self._engine.begin() as conn:
+            claimed = conn.execute(
+                update(email_verifications)
+                .where(
+                    email_verifications.c.token_hash == token_hash,
+                    email_verifications.c.used_at.is_(None),
+                    email_verifications.c.expires_at > now,
+                )
+                .values(used_at=now)
+            )
+            if claimed.rowcount != 1:
+                return None
+            row = conn.execute(
+                select(email_verifications.c.user_id, email_verifications.c.email).where(
+                    email_verifications.c.token_hash == token_hash
+                )
+            ).one()
+        return EmailToken(UserId(row.user_id), Email(row.email))

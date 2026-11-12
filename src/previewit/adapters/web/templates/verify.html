@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth-card">
+  {% if done %}
+  <h1>Email confirmed</h1>
+  <p>Thanks, your email address is confirmed.</p>
+  <p><a href="/account">Go to your account</a></p>
+  {% else %}
+  <h1>Confirm your email</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% if token %}
+  <p>One more click to confirm this address.</p>
+  <form method="post" action="/verify" hx-boost="false" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <input type="hidden" name="token" value="{{ token }}">
+    <button class="btn" type="submit">Confirm email</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

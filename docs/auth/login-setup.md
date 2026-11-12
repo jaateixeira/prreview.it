@@ -57,3 +57,17 @@ Metadata is loaded on the first HAKA login, not at startup, so a metadata outage
 ## Status of verification
 
 Tested without the real providers: claim mapping, Apple client-secret JWT, a signed SAML round trip against a local identity provider, and the web flows with a fake provider. **Not yet exercised against live Google, Apple or Haka.** Do that with test accounts before announcing the feature.
+
+## Email (verification)
+
+Verification mails need a mail server. https deployments will not start without one.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PREVIEWIT_SMTP_HOST` | none | SMTP server. Unset in development: the mail, including the link, is written to the server log. |
+| `PREVIEWIT_SMTP_PORT` | `587` | |
+| `PREVIEWIT_SMTP_SECURITY` | `starttls` | `starttls`, `ssl` (usually port 465) or `none`. |
+| `PREVIEWIT_SMTP_USER`, `PREVIEWIT_SMTP_PASSWORD` | none | Optional login. |
+| `PREVIEWIT_MAIL_FROM` | none | Required with a host, for example `Previewit <no-reply@your-domain>`. |
+
+Set up SPF, DKIM and DMARC for the sending domain, or verification mails will land in spam. Run `upgrade()` (see Core) after updating: migration 0002 adds the token table.

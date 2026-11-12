@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 import secrets
 from collections.abc import Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from itertools import count
 
 from fastapi.responses import RedirectResponse, Response
@@ -13,10 +15,14 @@ from starlette.requests import Request
 
 from previewit.adapters.auth.base import AuthFailed, ExternalProvider
 from previewit.adapters.auth.passwords import Argon2Hasher
-from previewit.adapters.persistence.memory import InMemoryUserRepository
+from previewit.adapters.persistence.memory import (
+    InMemoryEmailTokenRepository,
+    InMemoryUserRepository,
+)
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.app import build_app
 from previewit.application.auth import AuthService
+from previewit.application.verification import VerificationService
 from previewit.domain.identity import Email, ExternalClaims, Provider
 
 
@@ -39,20 +45,64 @@ class FakeProvider:
         return self.claims
 
 
+class Outbox:
+    def __init__(self) -> None:
+        self.sent: list[tuple[str, str, str]] = []
+
+    def send(self, to: str, subject: str, body: str) -> None:
+        self.sent.append((to, subject, body))
+
+    def last_link(self) -> str:
+        match = re.search(r"https?://\S+/verify\?token=\S+", self.sent[-1][2])
+        assert match
+        return match.group(0)
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.now = datetime(2026, 11, 12, 12, 0, tzinfo=UTC)
+
+    def __call__(self) -> datetime:
+        return self.now
+
+
+@dataclass
+class Harness:
+    client: TestClient
+    auth: AuthService
+    outbox: Outbox
+    clock: Clock
+
+
+def make_harness(
+    providers: Mapping[Provider, ExternalProvider] | None = None,
+    *,
+    base_url: str = "http://testserver",
+) -> Harness:
+    ids = count(1)
+    users = InMemoryUserRepository()
+    auth = AuthService(
+        users,
+        Argon2Hasher(time_cost=1, memory_cost=8, parallelism=1),
+        lambda: f"u{next(ids)}",
+    )
+    outbox, clock = Outbox(), Clock()
+    verification = VerificationService(
+        users, InMemoryEmailTokenRepository(), outbox, base_url, clock
+    )
+    settings = Settings(secret_key="test-secret", base_url=base_url)
+    app = build_app(settings, auth, verification, dict(providers or {}))
+    client = TestClient(app, base_url=base_url, follow_redirects=False)
+    return Harness(client, auth, outbox, clock)
+
+
 def make_client(
     providers: Mapping[Provider, ExternalProvider] | None = None,
     *,
     base_url: str = "http://testserver",
 ) -> tuple[TestClient, AuthService]:
-    ids = count(1)
-    auth = AuthService(
-        InMemoryUserRepository(),
-        Argon2Hasher(time_cost=1, memory_cost=8, parallelism=1),
-        lambda: f"u{next(ids)}",
-    )
-    settings = Settings(secret_key="test-secret", base_url=base_url)
-    app = build_app(settings, auth, dict(providers or {}))
-    return TestClient(app, base_url=base_url, follow_redirects=False), auth
+    harness = make_harness(providers, base_url=base_url)
+    return harness.client, harness.auth
 
 
 def csrf_token(client: TestClient, path: str) -> str:
