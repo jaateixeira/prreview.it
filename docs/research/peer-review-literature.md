@@ -1,6 +1,6 @@
 # Peer review designs: what the literature says
 
-Literature scan, November 2026. Covers educational peer assessment (the year-1 market), scholarly review and code review. Keys in brackets point to the reference list. Section 7 maps findings onto [PLAN.md](../PLAN.md). The configurations used in other industries are drawn in [review-configurations.md](review-configurations.md).
+Literature scan, November 2026. Covers educational peer assessment (the year-1 market), scholarly review and code review. Keys in brackets point to the reference list. Section 7 maps findings onto [PLAN.md](../PLAN.md). The review designs used in other industries are drawn in [review-designs.md](review-designs.md).
 
 Words follow the [glossary](../glossary.md). Titles in the reference list keep their original wording.
 

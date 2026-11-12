@@ -1,15 +1,15 @@
-# Review configurations across industries
+# Review designs across industries
 
-Every industry organizes peer review differently, but each form is a set of choices on the same few dimensions. This page names the dimensions, shows ten configurations from the literature as UML diagrams, and says what Previewit needs for each. The evidence is in [peer-review-literature.md](peer-review-literature.md); keys in brackets point to its reference list or to section 5 here.
+Every industry organizes peer review differently, but each form is a **Review design**: a set of choices on the same few dimensions. This page names the dimensions, shows ten review designs from the literature as UML diagrams, and says what Previewit needs for each. The evidence is in [peer-review-literature.md](peer-review-literature.md); keys in brackets point to its reference list or to section 5 here.
 
 Words follow the [glossary](../glossary.md). Where an industry uses another word, it is given once in quotes. Status marks follow [uml/README.md](../uml/README.md): **built**, **planned**, **deferred** (reserved in the glossary, after year 1) and **proposed** (a suggestion made here; confirm before building).
 
-## 1. The dimensions of a configuration
+## 1. The dimensions of a review design
 
 ```mermaid
 classDiagram
     direction LR
-    class ReviewConfiguration {
+    class ReviewDesign {
         <<proposed>>
         per_submission: int
         rounds: int
@@ -73,18 +73,18 @@ classDiagram
     class Rubric {
         <<built>>
     }
-    ReviewConfiguration --> Purpose
-    ReviewConfiguration --> ReviewerPool
-    ReviewConfiguration --> ReviewUnit
-    ReviewConfiguration --> Interaction
-    ReviewConfiguration --> Outcome
-    ReviewConfiguration --> "0..*" QualityControl
-    AllocationStrategy <-- ReviewConfiguration
-    AnonymityPolicy <-- ReviewConfiguration
-    Rubric "0..1" <-- ReviewConfiguration
+    ReviewDesign --> Purpose
+    ReviewDesign --> ReviewerPool
+    ReviewDesign --> ReviewUnit
+    ReviewDesign --> Interaction
+    ReviewDesign --> Outcome
+    ReviewDesign --> "0..*" QualityControl
+    AllocationStrategy <-- ReviewDesign
+    AnonymityPolicy <-- ReviewDesign
+    Rubric "0..1" <-- ReviewDesign
 ```
 
-`ReviewConfiguration` is not a new entity. It is the bundle of defaults a **Preset** would supply for a Call and its Rounds.
+`ReviewDesign` is not a new entity. It is the bundle of defaults a **Preset** would supply for a Call and its Rounds, as the [glossary](../glossary.md) defines Review design.
 
 | Dimension | Question it answers | Status in Previewit |
 |---|---|---|
@@ -99,11 +99,11 @@ classDiagram
 | Outcome | Feedback, a score, a Sign-off, a published report | Feedback planned (M6); Sign-off deferred |
 | Quality control | Who checks the reviewers? | Calibration deferred; others proposed |
 
-## 2. Ten configurations
+## 2. Ten review designs
 
 ### 2.1 Review by link (any industry)
 
-One author asks one reviewer. No Rubric, no allocation, comments only. The sequence diagram is in [uml/behaviour.md](../uml/behaviour.md#review-by-link-m2-m5-m6). This is the base case: every other configuration adds structure to it. **Built.**
+One author asks one reviewer. No Rubric, no allocation, comments only. The sequence diagram is in [uml/behaviour.md](../uml/behaviour.md#review-by-link-m2-m5-m6). This is the simplest review design and the base case: every other design adds structure to it. **Built.**
 
 ### 2.2 Reciprocal Round (education)
 
@@ -274,7 +274,7 @@ stateDiagram-v2
 
 ### 2.10 Multi-source feedback (teams and human resources)
 
-The unit is a Party, not a Submission. Several rater groups answer the same behavioural Rubric about one person. Answers are shown only in aggregate, and a group with fewer than three raters is merged with another so nobody can be identified. Practitioner guidance keeps it for development, apart from pay [NFCC]; measured improvement after such feedback is on average small [Smither05]. Teammate evaluation in project courses is the same configuration with one rater group; there the scores can turn a group mark into individual marks [Ohland12].
+The unit is a Party, not a Submission. Several rater groups answer the same behavioural Rubric about one person. Answers are shown only in aggregate, and a group with fewer than three raters is merged with another so nobody can be identified. Practitioner guidance keeps it for development, apart from pay [NFCC]; measured improvement after such feedback is on average small [Smither05]. Teammate evaluation in project courses is the same review design with one rater group; there the scores can turn a group mark into individual marks [Ohland12].
 
 ```mermaid
 flowchart LR
@@ -299,7 +299,7 @@ The manager's Answers are the usual exception to the threshold: they are shown a
 
 ## 3. Comparison
 
-| Configuration | Purpose | Reviewer pool | Unit | Reviewers | Allocation | Anonymity | Interaction | Outcome |
+| Review design | Purpose | Reviewer pool | Unit | Reviewers | Allocation | Anonymity | Interaction | Outcome |
 |---|---|---|---|---|---|---|---|---|
 | Review by link | Formative | Anyone with the link | Submission | 1 | By the author | Open | Author dialogue | Feedback |
 | Reciprocal Round | Formative, sometimes summative | Authors | Submission | 3 to 5 | Random | Reviewers hidden or double-anonymous | Independent | Feedback, score |
@@ -314,7 +314,7 @@ The manager's Answers are the usual exception to the threshold: they are shown a
 
 Three patterns stand out:
 
-1. **Who reviews is the main split.** Education is the main setting where authors are the reviewers. Elsewhere the pool is separate, and how it is chosen (expertise, ownership, independence) is the heart of the configuration.
+1. **Who reviews is the main split.** Education is the main setting where authors are the reviewers. Elsewhere the pool is separate, and how it is chosen (expertise, ownership, independence) is the heart of the review design.
 2. **Decisions need a second level.** Whenever review ends in a Decision or Sign-off, someone other than the reviewers makes it: editor, chair, council, committee, administering body.
 3. **Anonymity follows power, not habit.** Reviewers are hidden where they judge peers who could retaliate (journals, classes, 360). Identities are open where reviewer and author share a goal and keep working together (code review, inspection).
 
@@ -341,9 +341,9 @@ Three patterns stand out:
 | Review across organizations | Deferred (ADR 0006) | Firm-on-firm, journal |
 | Live meetings | Out of scope; Previewit is asynchronous | Inspection, grant funding |
 
-For meeting-based configurations Previewit can still carry the asynchronous parts: preparation, the issue log as Annotations, rework and follow-up.
+For meeting-based review designs Previewit can still carry the asynchronous parts: preparation, the issue log as Annotations, rework and follow-up.
 
-**Suggested order after the Education preset:** (1) a separate reviewer pool, because eight of the ten configurations need it; (2) Sign-off with a second level, which opens journals, conferences and inspections; (3) Party as the review unit, which opens teammate evaluation, the nearest neighbour of the first market.
+**Suggested order after the Education preset:** (1) a separate reviewer pool, because eight of the ten review designs need it; (2) Sign-off with a second level, which opens journals, conferences and inspections; (3) Party as the review unit, which opens teammate evaluation, the nearest neighbour of the first market.
 
 ## 5. Sources added on this page
 
