@@ -24,10 +24,10 @@ from previewit.domain.party import GroupParty, Party, UserParty
 from previewit.domain.reviews import (
     Annotation,
     AnnotationId,
+    EditConflict,
     InvalidReview,
     Review,
     ReviewClosed,
-    ReviewConflict,
     ReviewEdit,
     ReviewId,
     clean_comment,
@@ -193,7 +193,7 @@ class ReviewsService:
         submit: bool = False,
     ) -> Review:
         """Save a draft (or submit). Raises CriterionErrors for bad answers, InvalidReview for
-        missing required ones on submit, ReviewConflict if someone saved since you loaded."""
+        missing required ones on submit, EditConflict if someone saved since you loaded."""
         access = self._access(actor, task_id, write=True)
         existing = self._repo.review_of_task(task_id)
         clean, problems = self._check(access.call, answers)
@@ -322,7 +322,7 @@ class ReviewsService:
         task = access.task
         if existing is None:
             if expected_version != 0:
-                raise ReviewConflict
+                raise EditConflict
             review = Review(
                 ReviewId(self._new_id()), task.org_id, task.space_id, task.round_id, task.id,
                 answers, 1, submitted, actor, now,
@@ -330,12 +330,12 @@ class ReviewsService:
             try:
                 self._repo.add_review(review, ReviewEdit(review.id, 1, actor, now))
             except DuplicateReview:
-                raise ReviewConflict from None  # a group mate saved first
+                raise EditConflict from None  # a group mate saved first
             return review
         if existing.version != expected_version and existing.updated_by != actor:
             # Someone else saved after you loaded the page. Your own earlier saves (for example
             # an autosave that finished while you pressed Submit) are not a conflict.
-            raise ReviewConflict
+            raise EditConflict
         expected_version = existing.version
         review = replace(
             existing,
@@ -347,7 +347,7 @@ class ReviewsService:
         )
         edit = ReviewEdit(review.id, review.version, actor, now)
         if not self._repo.update_review(review, expected_version, edit):
-            raise ReviewConflict
+            raise EditConflict
         return review
 
     def _party_label(self, party: Party) -> str:

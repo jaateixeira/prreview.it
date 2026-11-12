@@ -105,11 +105,15 @@ def test_a_round_can_be_edited_and_deleted(w: RoundsWorld):
         r.id,
         per_submission=3,
         strategy_key="random",
-        anonymity_key="double_blind",
+        anonymity_key="double_anonymous",
         opens_at=None,
         closes_at=None,
     )
-    assert (r2.per_submission, r2.strategy_key, r2.anonymity_key) == (3, "random", "double_blind")
+    assert (r2.per_submission, r2.strategy_key, r2.anonymity_key) == (
+        3,
+        "random",
+        "double_anonymous",
+    )
     w.rr.delete_round(TINA, r.id)
     assert w.rr.rounds(TINA, w.call.id) == []
 

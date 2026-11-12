@@ -25,7 +25,7 @@ class InvalidReview(ValueError):
     pass
 
 
-class ReviewConflict(Exception):
+class EditConflict(Exception):
     """Someone saved this review after the version the editor started from."""
 
 

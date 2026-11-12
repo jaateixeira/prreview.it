@@ -1,7 +1,7 @@
 """Directional anonymity policy.
 
-Instead of fixed "single/double blind" modes, each direction is an independent switch.
-Presets cover the classic modes, including single-blind in *either* direction.
+Instead of fixed single/double-anonymous modes, each direction is an independent switch.
+Presets cover the classic modes, including single-anonymous in *either* direction.
 """
 
 from __future__ import annotations
@@ -35,17 +35,17 @@ class AnonymityPolicy:
         return cls(True, True, True)
 
     @classmethod
-    def single_blind_reviewers_hidden(cls) -> AnonymityPolicy:
+    def reviewers_hidden(cls) -> AnonymityPolicy:
         """Authors do not learn who reviewed them (the common case)."""
         return cls(True, False, True)
 
     @classmethod
-    def single_blind_authors_hidden(cls) -> AnonymityPolicy:
+    def authors_hidden(cls) -> AnonymityPolicy:
         """Reviewers do not learn who wrote the work; authors know their reviewers."""
         return cls(False, True, True)
 
     @classmethod
-    def double_blind(cls) -> AnonymityPolicy:
+    def double_anonymous(cls) -> AnonymityPolicy:
         return cls(False, False, False)
 
     def may_see_author(self, viewer: Viewer, *, revealed: bool = False) -> bool:

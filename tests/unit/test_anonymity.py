@@ -19,21 +19,21 @@ def test_open_review_shows_everyone_to_everyone():
         assert p.may_see_reviewer(v)
 
 
-def test_double_blind_hides_both_directions_from_participants():
-    p = AnonymityPolicy.double_blind()
+def test_double_anonymous_hides_both_directions_from_participants():
+    p = AnonymityPolicy.double_anonymous()
     assert not p.may_see_author(Viewer.REVIEWER)
     assert not p.may_see_reviewer(Viewer.AUTHOR)
     assert not p.may_see_reviewer(Viewer.OTHER_REVIEWER)
 
 
-def test_single_blind_reviewers_hidden_only_hides_reviewer_from_author():
-    p = AnonymityPolicy.single_blind_reviewers_hidden()
+def test_reviewers_hidden_only_hides_reviewer_from_author():
+    p = AnonymityPolicy.reviewers_hidden()
     assert p.may_see_author(Viewer.REVIEWER)
     assert not p.may_see_reviewer(Viewer.AUTHOR)
 
 
-def test_single_blind_authors_hidden_is_the_opposite_direction():
-    p = AnonymityPolicy.single_blind_authors_hidden()
+def test_authors_hidden_is_the_opposite_direction():
+    p = AnonymityPolicy.authors_hidden()
     assert not p.may_see_author(Viewer.REVIEWER)
     assert p.may_see_reviewer(Viewer.AUTHOR)
 

@@ -38,7 +38,7 @@
         {% elif ws.review %}<p><small>{{ 'Submitted' if ws.review.submitted else 'Draft' }}.</small></p>{% endif %}
       </form>
       {% else %}
-      <p class="card">This {{ 'assignment' }} has no rubric. You can still comment on the work.</p>
+      <p class="card">There is no rubric for this work. You can still comment on it.</p>
       {% endif %}
 
       <section class="card stack" id="comments">

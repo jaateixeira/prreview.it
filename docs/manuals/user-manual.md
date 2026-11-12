@@ -76,12 +76,12 @@ Each round has a policy with independent directions.
 | Open | Yes | Yes | Yes |
 | Reviewers hidden (default) | Yes | No | Yes |
 | Authors hidden | No | Yes | Yes |
-| Double-blind | No | No | No |
+| Double-anonymous | No | No | No |
 
 - The organizer always sees everyone.
 - Names can be revealed never, when the round closes, or at a decision.
 - Hidden parties appear under stable pseudonyms within a round, such as "Reviewer B".
-- In blind rounds Previewit removes names from file names and document metadata. Authors must still keep names out of the content itself.
+- In anonymous rounds Previewit removes names from file names and document metadata. Authors must still keep names out of the content itself.
 
 ## 9. Free use and limits (M8)
 

@@ -160,7 +160,7 @@ class RubricsService:
         into_space: SpaceId | None = None,
         name: str | None = None,
     ) -> Rubric:
-        """Copy a rubric, in this space or another you also manage (reuse across courses)."""
+        """Copy a rubric, in this space or another you also manage (reuse across spaces)."""
         source = self._managed(actor, rubric_id)
         target = into_space or source.space_id
         view = self._manage_view(actor, target)

@@ -10,7 +10,7 @@ from previewit.application.reviews import AnswerErrors, ReviewsService
 from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import Forbidden, NotFound
 from previewit.domain.party import GroupParty, UserParty
-from previewit.domain.reviews import InvalidReview, ReviewClosed, ReviewConflict
+from previewit.domain.reviews import EditConflict, InvalidReview, ReviewClosed
 from previewit.plugins.criteria import (
     LevelsCriterion,
     NumericCriterion,
@@ -231,7 +231,7 @@ def test_a_stale_version_from_another_member_is_a_conflict_and_changes_nothing(g
     w, task = gw
     w.rv.save(SUE, task.id, w.answers("2"), 0)
     w.rv.save(SUE, task.id, w.answers("3"), 1)
-    with pytest.raises(ReviewConflict):
+    with pytest.raises(EditConflict):
         w.rv.save(PAT, task.id, w.answers("5"), 1)  # Pat loaded version 1
     kept = w.rv.workspace(SUE, task.id).review
     assert kept and kept.version == 2 and kept.answers[w.score.id] == "3"
@@ -241,7 +241,7 @@ def test_a_stale_version_from_another_member_is_a_conflict_and_changes_nothing(g
 def test_two_members_starting_at_once_conflict_instead_of_duplicating(gw):
     w, task = gw
     w.rv.save(SUE, task.id, w.answers("2"), 0)
-    with pytest.raises(ReviewConflict):
+    with pytest.raises(EditConflict):
         w.rv.save(PAT, task.id, w.answers("5"), 0)
 
 

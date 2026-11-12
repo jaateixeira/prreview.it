@@ -72,12 +72,12 @@ Nothing in the domain assumes one direction or a fixed ratio. Allocation strateg
 
 Instead of fixed modes, a round carries an `AnonymityPolicy` with independent directions:
 
-- `author_visible_to_reviewer` (false → double-blind)
-- `reviewer_visible_to_author` (false → single-blind, authors don't know reviewers)
+- `author_visible_to_reviewer` (false → double-anonymous)
+- `reviewer_visible_to_author` (false → single-anonymous, authors don't know reviewers)
 - `reviewer_visible_to_other_reviewers`
 - `reveal_after` (never / round close / decision)
 
-This covers open, single-blind in **either** direction, and double-blind, with presets for each. A single **IdentityMask** service is the only code allowed to turn a Party into a display name, so every template and API goes through it. Pseudonyms are stable within a round ("Reviewer B") so discussions stay coherent. Leak tests cover filenames, PDF/Office metadata, URLs, timing and exports.
+This covers open, single-anonymous in **either** direction, and double-anonymous, with presets for each. A single **IdentityMask** service is the only code allowed to turn a Party into a display name, so every template and API goes through it. Pseudonyms are stable within a round ("Reviewer B") so discussions stay coherent. Leak tests cover filenames, PDF/Office metadata, URLs, timing and exports.
 
 ### 2.3 Rounds and revisions
 
@@ -94,12 +94,12 @@ A `Space` can be configured as a venue (conference track or journal). That adds,
 
 ### 2.5 Domain-neutral core, presets on top
 
-The core never says "student", "teacher" or "course". It uses **Space**, **Member**, **Party**, **Call**, **Submission**, **Review**. A **Preset** supplies vocabulary, default roles, rubric templates and workflow defaults:
+The core never says "student", "teacher" or "course". It uses **Space**, **Member**, **Party**, **Call**, **Submission**, **Review**. Every word is defined in the [glossary](glossary.md). A **Preset** supplies vocabulary, default roles, rubric templates and workflow defaults:
 
 | Preset | Space is a… | Roles | Typical defaults |
 |---|---|---|---|
-| Education | Course | teacher, assistant, student | Peer-to-peer, groups, single-blind, 2–3 reviews each |
-| Academic venue | Conference track / journal | chair, reviewer, author | Double-blind, COI checks, rebuttal, decisions |
+| Education | Course | teacher, assistant, student | Peer-to-peer, groups, single-anonymous, 2–3 reviews each |
+| Academic venue | Conference track / journal | chair, reviewer, author | Double-anonymous, COI checks, rebuttal, decisions |
 | Engineering team | Project / repo | lead, engineer | Open review, code/doc plugins, 1–2 reviewers |
 | Company / generic | Team / programme | admin, member | Configurable |
 
@@ -190,7 +190,7 @@ The core never imports a plugin; it asks the registry. Plugin API is marked *uns
 **Acceptance scenarios (written first, one per milestone)**
 1. Member A reviews Member B's text; B sees the feedback after release.
 2. Group G reviews Member S's PDF with a comment anchored to page 2.
-3. Member reviews a group's submission under double-blind; no identity appears anywhere.
+3. Member reviews a group's submission under double-anonymous; no identity appears anywhere.
 4. Organizer creates a rubric, allocates 3 reviews each, and no one gets themselves or their own group.
 5. Round 2: author submits a revision with a response; reviewers see the earlier reviews and the changes.
 6. Paper flow: 3 reviewers per paper, conflicts respected, chair records a decision.
@@ -234,7 +234,7 @@ Every milestone: small PRs, tests first, CI green, ADR for each notable decision
 
 - Authorisation in the application layer, tested as a role × resource matrix
 - Uploads: size and type limits, content sniffing, stored outside web root under random IDs
-- Reviewer-facing artifacts are stripped of PDF/document metadata in blind modes
+- Reviewer-facing artifacts are stripped of PDF/document metadata in anonymous modes
 - CSRF tokens, secure cookies, rate limiting on auth, argon2 password hashes
 - GDPR: data export and deletion per user, retention settings per organization and space, audit log
 

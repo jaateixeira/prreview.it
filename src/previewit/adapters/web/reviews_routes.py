@@ -14,7 +14,7 @@ from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.tenancy_routes import current_user
 from previewit.application.reviews import AnswerErrors, ReviewsService
 from previewit.domain.identity import User
-from previewit.domain.reviews import AnnotationId, InvalidReview, ReviewConflict
+from previewit.domain.reviews import AnnotationId, EditConflict, InvalidReview
 from previewit.domain.rounds import TaskId
 
 FIELD_PREFIX = "criterion-"
@@ -105,7 +105,7 @@ def build_reviews_router(*, reviews: ReviewsService, kit: WebKit) -> APIRouter:
             )  # fmt: skip
         except InvalidReview as e:
             return await run(page, request, user, task_id, draft=answers, error=str(e), status=400)
-        except ReviewConflict:
+        except EditConflict:
             message = (
                 "Someone else saved this review while you were editing. Your answers are shown "
                 "below; check them and save again to replace theirs."
@@ -130,7 +130,7 @@ def build_reviews_router(*, reviews: ReviewsService, kit: WebKit) -> APIRouter:
             return _status(request, "Not saved yet: " + " ".join(e.problems.values()), None, True)
         except InvalidReview as e:
             return _status(request, f"Not saved yet: {e}", None, True)
-        except ReviewConflict:
+        except EditConflict:
             return _status(
                 request,
                 "Not saved: someone changed this review. Reload the page to see their changes.",
