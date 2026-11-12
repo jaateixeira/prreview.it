@@ -14,6 +14,7 @@ The easy way to use Previewit will be the hosted service, with a free tier (in p
 |---|---|
 | Plan and decisions | [docs/PLAN.md](docs/PLAN.md), [docs/adr/](docs/adr/), [docs/business/](docs/business/README.md) |
 | UML diagrams | [docs/uml/](docs/uml/README.md) |
+| Research | [Review configurations across industries](docs/research/review-configurations.md), [literature review](docs/research/peer-review-literature.md) |
 | Manuals | [User manual](docs/manuals/user-manual.md), [Deployment manual](docs/manuals/deployment-manual.md) |
 
 ## Quick start

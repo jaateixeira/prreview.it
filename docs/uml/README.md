@@ -9,6 +9,7 @@ Diagrams are Mermaid, rendered by GitHub. They document the design in [`docs/PLA
 | [architecture.md](architecture.md) | Layers, ports, plugins | Component |
 | [behaviour.md](behaviour.md) | Flows and lifecycles | Sequence (2), state (2) |
 | [../manuals/deployment-manual.md](../manuals/deployment-manual.md) | Runtime nodes | Deployment |
+| [../research/review-configurations.md](../research/review-configurations.md) | How review is organized in ten industries | Class, sequence (3), state (3), activity (3) |
 
 ## Built or planned
 
