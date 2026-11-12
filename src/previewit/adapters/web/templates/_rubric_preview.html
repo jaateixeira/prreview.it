@@ -1,0 +1,10 @@
+{# What reviewers will see. Needs `view` (a RubricView). The inputs are inert here. #}
+<form class="card form rubric-preview" onsubmit="return false">
+  {% for c in view.criteria %}
+  <fieldset class="criterion">
+    <legend>{{ c.criterion.title }}{% if not c.criterion.required %} <small>(optional)</small>{% endif %}</legend>
+    {% if c.criterion.guidance %}<p class="guidance">{{ c.criterion.guidance }}</p>{% endif %}
+    {{ c.input_html | safe }}
+  </fieldset>
+  {% else %}<p>This rubric has no criteria yet.</p>{% endfor %}
+</form>

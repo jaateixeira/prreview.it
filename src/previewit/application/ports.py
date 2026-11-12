@@ -21,6 +21,7 @@ from previewit.domain.calls import (
 )
 from previewit.domain.identity import Email, IdentityKey, User, UserId
 from previewit.domain.party import Party
+from previewit.domain.rubrics import Criterion, CriterionId, Rubric, RubricId
 from previewit.domain.tenancy import (
     Group,
     GroupId,
@@ -211,6 +212,8 @@ class CallRepository(Protocol):
 
     def calls_in_space(self, space_id: SpaceId) -> list[Call]: ...
 
+    def calls_using_rubric(self, rubric_id: RubricId) -> list[Call]: ...
+
     def add_submission(
         self, submission: Submission, artifact: Artifact, created_by: UserId, now: datetime
     ) -> Revision:
@@ -258,3 +261,33 @@ class Entitlements(Protocol):
     """What a user's plan allows. Limits are decided here, never by `if plan == ...`."""
 
     def may_create_share(self, user_id: UserId, shares_so_far: int) -> bool: ...
+
+
+class RubricRepository(Protocol):
+    """Rubrics and their criteria. Rows carry org_id; callers authorise first."""
+
+    def add_rubric(self, rubric: Rubric, items: Sequence[Criterion] = ()) -> None: ...
+
+    def get_rubric(self, rubric_id: RubricId) -> Rubric | None: ...
+
+    def update_rubric(self, rubric: Rubric) -> None: ...
+
+    def delete_rubric(self, rubric_id: RubricId) -> None: ...
+
+    def rubrics_in_space(self, space_id: SpaceId) -> list[Rubric]: ...
+
+    def add_criterion(self, criterion: Criterion) -> None: ...
+
+    def get_criterion(self, criterion_id: CriterionId) -> Criterion | None: ...
+
+    def update_criterion(self, criterion: Criterion) -> None: ...
+
+    def delete_criterion(self, criterion_id: CriterionId) -> None: ...
+
+    def criteria_of(self, rubric_id: RubricId) -> list[Criterion]:
+        """In display order."""
+        ...
+
+    def set_positions(self, rubric_id: RubricId, order: Sequence[CriterionId]) -> None:
+        """Renumber the rubric's criteria 0, 1, 2, ... in this order."""
+        ...

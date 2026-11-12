@@ -26,13 +26,16 @@ from previewit.adapters.persistence.sql import (
     SqlUserRepository,
 )
 from previewit.adapters.persistence.sql_calls import SqlCallRepository
-from previewit.adapters.plugins import discover_artifact_types
+from previewit.adapters.persistence.sql_rubrics import SqlRubricRepository
+from previewit.adapters.plugins import discover_artifact_types, discover_criterion_types
 from previewit.adapters.settings import Settings, load_settings
 from previewit.adapters.web.app import build_app
 from previewit.application.artifacts import ArtifactRegistry
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService
+from previewit.application.criteria import CriterionRegistry
 from previewit.application.ports import Mailer
+from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
 
@@ -75,8 +78,9 @@ def create_app() -> FastAPI:
         lambda: datetime.now(UTC),
         policy=settings.verification_policy,
     )
+    call_repo = SqlCallRepository(engine)
     calls = CallsService(
-        SqlCallRepository(engine),
+        call_repo,
         tenancy,
         tenancy_repo,
         users,
@@ -85,6 +89,14 @@ def create_app() -> FastAPI:
         lambda: uuid.uuid4().hex,
         lambda: datetime.now(UTC),
         policy=settings.verification_policy,
+    )
+    criterion_types = CriterionRegistry(discover_criterion_types())
+    rubrics = RubricsService(
+        SqlRubricRepository(engine),
+        call_repo,
+        tenancy,
+        criterion_types,
+        lambda: uuid.uuid4().hex,
     )
     registry = ArtifactRegistry(artifact_types)
     mailer_mode = "SMTP" if isinstance(mailer, SmtpMailer) else "written to the log (development)"
@@ -99,7 +111,7 @@ def create_app() -> FastAPI:
             log_level=settings.log_level,
         )
     )
-    return build_app(settings, auth, verification, tenancy, calls, providers)
+    return build_app(settings, auth, verification, tenancy, calls, rubrics, providers)
 
 
 def _version() -> str:

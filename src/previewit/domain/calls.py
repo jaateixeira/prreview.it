@@ -14,6 +14,7 @@ from typing import NewType
 
 from previewit.domain.identity import UserId
 from previewit.domain.party import Party
+from previewit.domain.rubrics import RubricId
 from previewit.domain.tenancy import OrgId, SpaceId
 
 CallId = NewType("CallId", str)
@@ -71,6 +72,7 @@ class Call:
     closes_at: datetime | None
     published: bool
     created_by: UserId
+    rubric_id: RubricId | None = None  # what reviewers answer; chosen by the call's managers
 
     def accepting(self, now: datetime) -> bool:
         return self.published and (self.closes_at is None or now < self.closes_at)

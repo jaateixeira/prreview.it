@@ -39,6 +39,7 @@ class Permission(StrEnum):
     CALLS_MANAGE = "calls.manage"
     SUBMIT = "submissions.create"
     SUBMISSIONS_VIEW_ALL = "submissions.view_all"
+    RUBRICS_MANAGE = "rubrics.manage"
 
 
 class OrgRole(StrEnum):

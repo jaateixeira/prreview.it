@@ -38,6 +38,10 @@ valkey = [
 [project.entry-points."previewit.plugins"]
 text = "previewit.plugins.text:TextArtifact"
 pdf = "previewit.plugins.pdf:PdfArtifact"
+numeric = "previewit.plugins.criteria:NumericCriterion"
+levels = "previewit.plugins.criteria:LevelsCriterion"
+yes_no = "previewit.plugins.criteria:YesNoCriterion"
+criterion_text = "previewit.plugins.criteria:TextCriterion"
 
 [dependency-groups]
 dev = [

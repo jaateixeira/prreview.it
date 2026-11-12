@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+{% set rubric = view.rubric %}
+<section class="stack">
+  <p class="crumb"><a href="/spaces">Spaces</a> / <a href="/spaces/{{ rubric.space_id }}">{{ view.space.space.name }}</a>{% if view.can_manage %} / <a href="/spaces/{{ rubric.space_id }}/rubrics">Rubrics</a>{% endif %}</p>
+  <h1>{{ rubric.name }}</h1>
+  {% if rubric.description %}<p class="prose">{{ rubric.description }}</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+  <h2>What reviewers will see</h2>
+  {% include "_rubric_preview.html" %}
+
+  {% if view.can_manage %}
+  <h2>Criteria</h2>
+  <p><small>Total weight {{ view.total_weight }}. Weight 0 means feedback only, not scored. Used by {{ view.used_by }} call{{ '' if view.used_by == 1 else 's' }}.</small></p>
+  <ol class="list criteria">
+    {% for c in view.criteria %}
+    {% set k = type_by_key[c.criterion.type_key] %}
+    <li>
+      <details>
+        <summary><strong>{{ c.criterion.title }}</strong> <small>{{ c.type_label }}: {{ c.summary }}, weight {{ c.criterion.weight }}</small></summary>
+        <form method="post" action="/rubrics/{{ rubric.id }}/criteria/{{ c.criterion.id }}/edit" hx-boost="false" class="form">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="type_key" value="{{ k.key }}">
+          <label class="field">Title <input type="text" name="title" value="{{ c.criterion.title }}" maxlength="200" required></label>
+          <label class="field">Guidance for reviewers <textarea name="guidance" rows="2" maxlength="1000">{{ c.criterion.guidance }}</textarea></label>
+          {% set kind = k %}{% set values = c.form_values %}{% include "_fields.html" %}
+          <label class="field">Weight <input type="number" name="weight" value="{{ c.criterion.weight }}" min="0" max="100"></label>
+          <label class="field"><span><input type="checkbox" name="required" {% if c.criterion.required %}checked{% endif %}> Required</span></label>
+          <button class="btn btn-small" type="submit">Save criterion</button>
+        </form>
+      </details>
+      <form method="post" action="/rubrics/{{ rubric.id }}/criteria/{{ c.criterion.id }}/move" hx-boost="false" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-small btn-secondary" name="direction" value="up" type="submit" aria-label="Move {{ c.criterion.title }} up">Up</button>
+        <button class="btn btn-small btn-secondary" name="direction" value="down" type="submit" aria-label="Move {{ c.criterion.title }} down">Down</button>
+      </form>
+      <form method="post" action="/rubrics/{{ rubric.id }}/criteria/{{ c.criterion.id }}/delete" hx-boost="false" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-small btn-secondary" type="submit" aria-label="Delete {{ c.criterion.title }}">Delete</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <h2>Add a criterion</h2>
+  {% for kind in types %}
+  <details class="card">
+    <summary>{{ kind.label }}</summary>
+    <form method="post" action="/rubrics/{{ rubric.id }}/criteria" hx-boost="false" class="form">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <input type="hidden" name="type_key" value="{{ kind.key }}">
+      <label class="field">Title <input type="text" name="title" maxlength="200" required></label>
+      <label class="field">Guidance for reviewers <textarea name="guidance" rows="2" maxlength="1000"></textarea></label>
+      {% set values = none %}{% include "_fields.html" %}
+      <label class="field">Weight <input type="number" name="weight" value="1" min="0" max="100"></label>
+      <label class="field"><span><input type="checkbox" name="required" checked> Required</span></label>
+      <button class="btn" type="submit">Add {{ kind.label | lower }} criterion</button>
+    </form>
+  </details>
+  {% endfor %}
+
+  <h2>Rubric</h2>
+  <form method="post" action="/rubrics/{{ rubric.id }}/edit" hx-boost="false" class="card form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Name <input type="text" name="name" value="{{ rubric.name }}" maxlength="100" required></label>
+    <label class="field">Description <textarea name="description" rows="2" maxlength="1000">{{ rubric.description }}</textarea></label>
+    <button class="btn" type="submit">Save</button>
+  </form>
+  <form method="post" action="/rubrics/{{ rubric.id }}/duplicate" hx-boost="false" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-secondary" type="submit">Make a copy</button>
+  </form>
+  <form method="post" action="/rubrics/{{ rubric.id }}/delete" hx-boost="false" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-secondary" type="submit">Delete rubric</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,11 @@
+{# Inputs for the settings a criterion type asks for. Needs `kind` (the type) and optional `values`. #}
+{% for f in kind.fields %}
+<label class="field">{{ f.label }}
+  {% if f.kind == 'lines' %}
+  <textarea name="cfg_{{ f.name }}" rows="5">{{ (values or {}).get(f.name, f.default) }}</textarea>
+  {% else %}
+  <input type="number" name="cfg_{{ f.name }}" value="{{ (values or {}).get(f.name, f.default) }}">
+  {% endif %}
+  {% if f.help %}<small>{{ f.help }}</small>{% endif %}
+</label>
+{% endfor %}

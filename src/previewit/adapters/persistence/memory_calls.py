@@ -21,6 +21,7 @@ from previewit.domain.calls import (
 )
 from previewit.domain.identity import UserId
 from previewit.domain.party import Party
+from previewit.domain.rubrics import RubricId
 from previewit.domain.tenancy import SpaceId
 
 
@@ -61,6 +62,9 @@ class InMemoryCallRepository:
 
     def calls_in_space(self, space_id: SpaceId) -> list[Call]:
         return [c for c in self._calls.values() if c.space_id == space_id]
+
+    def calls_using_rubric(self, rubric_id: RubricId) -> list[Call]:
+        return [c for c in self._calls.values() if c.rubric_id == rubric_id]
 
     # -- submissions and revisions ------------------------------------------------------
 

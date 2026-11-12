@@ -149,6 +149,42 @@ invites = Table(
 
 # --- calls, submissions, revisions, sharing (all carry org_id) -------------------------------
 
+rubrics = Table(
+    "rubrics",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("space_id", String(64), nullable=False),
+    Column("name", String(100), nullable=False),
+    Column("description", String(5000), nullable=False, default=""),
+    Column("created_by", String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    ForeignKeyConstraint(
+        ["space_id", "org_id"], ["spaces.id", "spaces.org_id"], ondelete="CASCADE"
+    ),
+    UniqueConstraint("id", "org_id", name="uq_rubrics_id_org"),
+    Index("ix_rubrics_space_id", "space_id"),
+)
+
+criteria = Table(
+    "criteria",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("rubric_id", String(64), nullable=False),
+    Column("position", Integer, nullable=False),
+    Column("title", String(200), nullable=False),
+    Column("guidance", String(1000), nullable=False, default=""),
+    Column("type_key", String(64), nullable=False),
+    Column("config", String(4000), nullable=False),  # JSON, normalised by the criterion type
+    Column("weight", Integer, nullable=False),
+    Column("required", Boolean, nullable=False),
+    ForeignKeyConstraint(
+        ["rubric_id", "org_id"], ["rubrics.id", "rubrics.org_id"], ondelete="CASCADE"
+    ),
+    Index("ix_criteria_rubric_id", "rubric_id"),
+)
+
 calls = Table(
     "calls",
     metadata,
@@ -163,9 +199,12 @@ calls = Table(
     Column("published", Boolean, nullable=False, default=False),
     Column("created_by", String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    # Nullable: a call without a rubric. A rubric in use cannot be deleted (no ON DELETE).
+    Column("rubric_id", String(64), nullable=True),
     ForeignKeyConstraint(
         ["space_id", "org_id"], ["spaces.id", "spaces.org_id"], ondelete="CASCADE"
     ),
+    ForeignKeyConstraint(["rubric_id", "org_id"], ["rubrics.id", "rubrics.org_id"]),
     UniqueConstraint("id", "org_id", name="uq_calls_id_org"),
     Index("ix_calls_space_id", "space_id"),
 )
