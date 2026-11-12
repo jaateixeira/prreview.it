@@ -1,4 +1,3 @@
-import logging
 import smtplib
 from email.message import EmailMessage
 from typing import ClassVar
@@ -64,10 +63,9 @@ def test_header_injection_is_refused():
         SmtpMailer("h", 587, None, None, "a@b.fi").send("x@y.fi\nBcc: evil@z.fi", "s", "b")
 
 
-def test_log_mailer_prints_the_mail_for_development(caplog: pytest.LogCaptureFixture):
-    with caplog.at_level(logging.INFO):
-        LogMailer().send("ann@x.fi", "Subject", "link: http://localhost/verify?token=abc")
-    assert "ann@x.fi" in caplog.text and "token=abc" in caplog.text
+def test_log_mailer_prints_the_mail_for_development(logged):
+    LogMailer().send("ann@x.fi", "Subject", "link: http://localhost/verify?token=abc")
+    assert "ann@x.fi" in logged.text and "token=abc" in logged.text
 
 
 def test_settings_read_the_smtp_variables():

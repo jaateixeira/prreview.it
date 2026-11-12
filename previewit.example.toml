@@ -11,6 +11,14 @@ base_url = "https://prreview.example"      # https requires a secret key
 [database]
 url = "postgresql+psycopg://previewit:password@localhost/previewit"
 
+[cache]
+# Valkey keeps the signed-in user close at hand. Without it an in-process cache is used,
+# which is right for one worker only.
+# url = "valkey://127.0.0.1:6379/0"
+
+[logging]
+level = "INFO"                             # TRACE | DEBUG | INFO | WARNING | ERROR
+
 [mail]
 # smtp_host = "smtp.example.org"
 # smtp_port = 587

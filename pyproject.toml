@@ -17,7 +17,9 @@ dependencies = [
     "itsdangerous>=2.2.0",
     "jinja2>=3.1",
     "joserfc>=1.8.0",
+    "loguru>=0.8.0",
     "python-multipart>=0.0.33",
+    "rich>=15.0.0",
     "sqlalchemy>=2.1.8",
     "uvicorn[standard]>=0.30",
 ]
@@ -28,6 +30,9 @@ saml = [
 ]
 postgres = [
     "psycopg[binary]>=3.2",
+]
+valkey = [
+    "valkey>=6.0",
 ]
 
 [project.entry-points."previewit.plugins"]

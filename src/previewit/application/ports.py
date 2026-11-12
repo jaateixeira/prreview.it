@@ -75,6 +75,20 @@ class UserRepository(Protocol):
         ...
 
 
+class Cache(Protocol):
+    """A fast, lossy key-value store for data that is read far more often than it changes.
+
+    Only a copy: the database stays the source of truth. A cache that is down must behave
+    like an empty one, never like an error.
+    """
+
+    def get(self, key: str) -> str | None: ...
+
+    def set(self, key: str, value: str, ttl_seconds: int) -> None: ...
+
+    def delete(self, key: str) -> None: ...
+
+
 class PasswordHasher(Protocol):
     def hash(self, password: str) -> str: ...
 

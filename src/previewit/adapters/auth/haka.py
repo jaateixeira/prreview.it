@@ -8,7 +8,6 @@ lazily so the rest of the application runs without them.
 from __future__ import annotations
 
 import asyncio
-import logging
 import shutil
 import threading
 from collections.abc import Mapping, Sequence
@@ -16,13 +15,12 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlencode
 
+from loguru import logger
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
 from previewit.adapters.auth.base import AuthFailed
 from previewit.domain.identity import Email, ExternalClaims, InvalidEmail, Provider
-
-log = logging.getLogger(__name__)
 
 PERSISTENT = "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
 _SAML_IDS = "saml_request_ids"
@@ -158,7 +156,7 @@ class HakaProvider:
         try:
             location, request_id = await asyncio.to_thread(self._authn_request, idp)
         except Exception as error:
-            log.warning("could not start HAKA login: %s", error)
+            logger.warning("could not start HAKA login: {}", error)
             raise AuthFailed(str(error)) from error
         ids = list(request.session.get(_SAML_IDS, []))
         request.session[_SAML_IDS] = [*ids[-4:], request_id]
@@ -185,7 +183,7 @@ class HakaProvider:
         except AuthFailed:
             raise
         except Exception as error:
-            log.warning("HAKA response rejected: %s", error)
+            logger.warning("HAKA response rejected: {}", error)
             raise AuthFailed(str(error)) from error
         request.session[_SAML_IDS] = [i for i in request.session.get(_SAML_IDS, []) if i != used]
         return claims

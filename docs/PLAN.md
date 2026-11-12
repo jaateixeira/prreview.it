@@ -146,6 +146,8 @@ Dependency rule: `adapters → application → domain`. Never the reverse.
 |---|---|---|
 | Packaging/env | `uv` | Fast, reproducible lockfile |
 | DB | SQLAlchemy 2.0 + Alembic; PostgreSQL is the only supported production database; SQLite for local development and fast tests | Easy contributor setup, one production stack |
+| Cache | **Valkey** for the hottest reads (the signed-in user on every request); an in-process cache when none is configured; a down cache behaves as empty (ADR 0012) | Fast entry into the system without making the cache a dependency |
+| Logs and console | **loguru** (levels TRACE to ERROR, standard logging captured) and **rich** (startup panel) | Debuggable in development, readable for operators |
 | Frontend | Jinja2 + HTMX + a little Alpine.js; hand-written CSS with design tokens (no Node build) | Lightning fast, zero JS toolchain for contributors |
 | PDF | PDF.js for rendering; annotation layer in our own small JS module | Mature, open source |
 | Text annotation | Server stores selectors; small JS captures the selection | Keeps JS minimal |

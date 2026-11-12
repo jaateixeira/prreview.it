@@ -992,6 +992,19 @@ wheels = [
 ]
 
 [[package]]
+name = "loguru"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "win32-setctime", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/61/ce/b5bb93d4d9fc7a067f69140b3bb3782f6ad6360bc76e99b6e3d386cb1320/loguru-0.8.0.tar.gz", hash = "sha256:fb3e4623288e37700a0577f6e0ce776cc1860b5d95c657d67f07a2476b304867", size = 71232, upload-time = "2026-11-11T18:50:26.248Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c8/00/9ee7c8da7342b1a5524bca9d036f89e7d1d1e5a6345c9623763eeeac941f/loguru-0.8.0-py3-none-any.whl", hash = "sha256:e0fba09d6f76ba2d2f4bd1757122942f5a670c702e988b5efaeab99dacba0069", size = 69409, upload-time = "2026-11-11T18:50:24.148Z" },
+]
+
+[[package]]
 name = "mako"
 version = "1.4.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1208,7 +1221,9 @@ dependencies = [
     { name = "itsdangerous" },
     { name = "jinja2" },
     { name = "joserfc" },
+    { name = "loguru" },
     { name = "python-multipart" },
+    { name = "rich" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -1219,6 +1234,9 @@ postgres = [
 ]
 saml = [
     { name = "pysaml2" },
+]
+valkey = [
+    { name = "valkey" },
 ]
 
 [package.dev-dependencies]
@@ -1244,13 +1262,16 @@ requires-dist = [
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "joserfc", specifier = ">=1.8.0" },
+    { name = "loguru", specifier = ">=0.8.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "pysaml2", marker = "extra == 'saml'", specifier = ">=7.5.5" },
     { name = "python-multipart", specifier = ">=0.0.33" },
+    { name = "rich", specifier = ">=15.0.0" },
     { name = "sqlalchemy", specifier = ">=2.1.8" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
+    { name = "valkey", marker = "extra == 'valkey'", specifier = ">=6.0" },
 ]
-provides-extras = ["saml", "postgres"]
+provides-extras = ["saml", "postgres", "valkey"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1952,6 +1973,15 @@ wheels = [
 ]
 
 [[package]]
+name = "valkey"
+version = "6.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/c7/38b3ae24672abcc19e668858c4c8c4f7b7d0dda06973f46d755190452fdc/valkey-6.2.0.tar.gz", hash = "sha256:7337c493ce55d7fe58ab44c93c37f56552dad75f9512e97c5808374ab5af4939", size = 4596658, upload-time = "2026-10-12T10:24:28.403Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/10/84312ccb0d328702e27f2e79c18aa84004482dd1737dc58d2b352d7289e2/valkey-6.2.0-py3-none-any.whl", hash = "sha256:94a12c87cd070e356b2c89e2946fa582d9f65ec2e003ab1867e987220e2beae8", size = 261233, upload-time = "2026-10-12T10:24:26.871Z" },
+]
+
+[[package]]
 name = "watchfiles"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2123,6 +2153,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/29/3a/a05bc57eadcd7e8e072d917888128e6d22e1203984afb21a8da3198982fe/websockets-17.4-pp312-pypy312_pp80-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:868744c68e9342768888c7326604da2228c19bb6946aa46b5f9e1ac32ea8d40b", size = 218356, upload-time = "2026-10-30T15:10:31.432Z" },
     { url = "https://files.pythonhosted.org/packages/b2/49/eed86bfb8863093a82cbaa52c9159be1ce2374d5ace6fe1f8e8031567e7d/websockets-17.4-pp312-pypy312_pp80-win_amd64.whl", hash = "sha256:829bcaa90be8737c132d9515d6a466e8528e3b3d050d3f3466f36ea94d3beb48", size = 306838, upload-time = "2026-10-30T15:10:32.954Z" },
     { url = "https://files.pythonhosted.org/packages/eb/27/9db924cb0dbf22eade78d98fbae77790f9bf6bc729e6ab29aef9d68e4156/websockets-17.4-py3-none-any.whl", hash = "sha256:c6bd2c9781915592b209160d0f017d4c7c82ad53075e6b0c24d2a89299e7f9e9", size = 212900, upload-time = "2026-10-30T15:10:34.482Z" },
+]
+
+[[package]]
+name = "win32-setctime"
+version = "1.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1a/e4/f0f252c65f9bf7c4042b1f707ef338d49f799da582234e1d3e6e2cfca291/win32_setctime-1.2.1.tar.gz", hash = "sha256:077b35471bf1ff1d71e165c919ddc0cecf51b8e1802f5d820d33a96e2f6717dd", size = 4983, upload-time = "2026-10-25T18:21:32.318Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/df/5593480bc1e932eeae28e4fa182ab68174edd0d77409ced3b6491d02d1d5/win32_setctime-1.2.1-py3-none-any.whl", hash = "sha256:a9edc685b35414bec69392c866ed82456ad125ac4a6a4b703ec1d8b462d4f477", size = 4215, upload-time = "2026-10-25T18:21:30.939Z" },
 ]
 
 [[package]]

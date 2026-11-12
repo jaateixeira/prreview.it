@@ -1,4 +1,3 @@
-import logging
 import os
 import textwrap
 from pathlib import Path
@@ -158,15 +157,37 @@ def test_both_inline_and_file_for_one_secret_is_an_error(tmp_path: Path):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX permissions")
-def test_a_world_readable_file_with_secrets_is_warned_about(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-):
+def test_a_world_readable_file_with_secrets_is_warned_about(tmp_path: Path, logged):
     path = write(tmp_path, '[server]\nsecret_key = "x"\n', mode=0o644)
-    with caplog.at_level(logging.WARNING):
-        load_settings({"PREVIEWIT_CONFIG": str(path)})
-    assert "chmod 600" in caplog.text
-    caplog.clear()
+    load_settings({"PREVIEWIT_CONFIG": str(path)})
+    assert "chmod 600" in logged.text
+    logged.clear()
     quiet = write(tmp_path, '[server]\nbase_url = "http://x"\n', "q.toml", mode=0o644)
-    with caplog.at_level(logging.WARNING):
-        load_settings({"PREVIEWIT_CONFIG": str(quiet)})
-    assert "chmod" not in caplog.text  # nothing secret inside, nothing to warn about
+    load_settings({"PREVIEWIT_CONFIG": str(quiet)})
+    assert "chmod" not in logged.text  # nothing secret inside, nothing to warn about
+
+
+def test_cache_and_logging_settings(tmp_path: Path):
+    assert load_settings({}, search=[]).cache_url is None
+    assert load_settings({}, search=[]).log_level == "INFO"
+    path = write(
+        tmp_path,
+        """
+        [cache]
+        url = "valkey://localhost:6379/0"
+        [logging]
+        level = "debug"
+        """,
+    )
+    s = load_settings({"PREVIEWIT_CONFIG": str(path)})
+    assert (s.cache_url, s.log_level) == ("valkey://localhost:6379/0", "DEBUG")
+    assert load_settings({"PREVIEWIT_LOG_LEVEL": "trace"}, search=[]).log_level == "TRACE"
+    with pytest.raises(ConfigError, match="LOG_LEVEL"):
+        load_settings({"PREVIEWIT_LOG_LEVEL": "loud"}, search=[])
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX permissions")
+def test_a_cache_url_may_hold_a_password_so_an_open_file_is_warned_about(tmp_path: Path, logged):
+    path = write(tmp_path, '[cache]\nurl = "valkey://:pw@localhost/0"\n', mode=0o644)
+    load_settings({"PREVIEWIT_CONFIG": str(path)})
+    assert "chmod 600" in logged.text
