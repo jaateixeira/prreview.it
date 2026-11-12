@@ -5,7 +5,8 @@
   <h1>{{ view.space.name }}</h1>
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 
-  <p><a class="btn" href="/spaces/{{ view.space.id }}/calls">{{ word('calls') | capitalize }}</a></p>
+  <p><a class="btn" href="/spaces/{{ view.space.id }}/calls">{{ word('calls') | capitalize }}</a>
+  {% if 'rubrics.manage' in perms %}<a class="btn btn-secondary" href="/spaces/{{ view.space.id }}/rubrics">Rubrics</a>{% endif %}</p>
 
   <h2>{{ word('members') | capitalize }}</h2>
   <ul class="list">

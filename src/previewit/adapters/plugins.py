@@ -5,6 +5,7 @@ from __future__ import annotations
 from importlib.metadata import entry_points
 
 from previewit.application.artifacts import ArtifactType
+from previewit.application.criteria import CriterionType
 
 GROUP = "previewit.plugins"
 
@@ -15,5 +16,15 @@ def discover_artifact_types() -> list[ArtifactType]:
     for entry in sorted(entry_points(group=GROUP), key=lambda e: e.name):
         plugin = entry.load()()
         if isinstance(plugin, ArtifactType):
+            found.append(plugin)
+    return found
+
+
+def discover_criterion_types() -> list[CriterionType]:
+    """One instance of every installed plugin that implements the CriterionType API."""
+    found: list[CriterionType] = []
+    for entry in sorted(entry_points(group=GROUP), key=lambda e: e.name):
+        plugin = entry.load()()
+        if isinstance(plugin, CriterionType):
             found.append(plugin)
     return found

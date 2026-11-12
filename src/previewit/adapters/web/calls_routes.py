@@ -23,6 +23,7 @@ from previewit.application.calls import (
     InvalidShare,
     ShareLimitReached,
 )
+from previewit.application.rubrics import RubricsService
 from previewit.domain.calls import CallId, InvalidCall, ShareTarget, SubmissionId
 from previewit.domain.identity import User
 from previewit.domain.tenancy import GroupId, SpaceId
@@ -59,7 +60,7 @@ async def read_upload(form: FormData, artifact_type: ArtifactType) -> Upload:
     return Upload()
 
 
-def build_calls_router(*, calls: CallsService, kit: WebKit) -> APIRouter:
+def build_calls_router(*, calls: CallsService, rubrics: RubricsService, kit: WebKit) -> APIRouter:
     router = APIRouter()
     run = run_in_threadpool
 
@@ -79,6 +80,8 @@ def build_calls_router(*, calls: CallsService, kit: WebKit) -> APIRouter:
         view = calls.call_view(user.id, CallId(call_id))
         manage = "calls.manage" in {p.value for p in view.permissions}
         shares = calls.shares(user.id, ShareTarget.CALL, call_id) if manage else []
+        can_rubrics = "rubrics.manage" in {p.value for p in view.permissions}
+        choices = rubrics.rubrics(user.id, view.call.space_id) if manage and can_rubrics else None
         return kit.render(
             request,
             "call.html",
@@ -89,6 +92,8 @@ def build_calls_router(*, calls: CallsService, kit: WebKit) -> APIRouter:
                 "manage": manage,
                 "shares": shares,
                 "types": calls.artifact_types(),
+                "rubric_view": rubrics.rubric_for_call(user.id, CallId(call_id)),
+                "rubric_choices": choices,
                 "error": error,
                 "new_link": new_link,
                 "closes_value": view.call.closes_at.strftime("%Y-%m-%dT%H:%M")

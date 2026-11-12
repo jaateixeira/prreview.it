@@ -14,6 +14,11 @@
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   {% if call.description %}<p class="prose">{{ call.description }}</p>{% endif %}
 
+  {% if rubric_view %}
+  <h2>Review rubric: {{ rubric_view.rubric.name }}</h2>
+  {% with view = rubric_view %}{% include "_rubric_preview.html" %}{% endwith %}
+  {% endif %}
+
   {% if not view.guest %}
   <h2>Your {{ word('submissions') }}</h2>
   {% if view.can_submit %}
@@ -58,6 +63,19 @@
     <label class="field"><span><input type="checkbox" name="published" {% if call.published %}checked{% endif %}> Visible to participants</span></label>
     <button class="btn" type="submit">Save</button>
   </form>
+  {% if rubric_choices is not none %}
+  <form method="post" action="/calls/{{ call.id }}/rubric" hx-boost="false" class="card form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Review rubric
+      <select name="rubric_id">
+        <option value="">None</option>
+        {% for r in rubric_choices %}<option value="{{ r.id }}" {% if r.id == call.rubric_id %}selected{% endif %}>{{ r.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit">Use this rubric</button>
+    <a href="/spaces/{{ call.space_id }}/rubrics">Manage rubrics</a>
+  </form>
+  {% endif %}
   <form method="post" action="/calls/{{ call.id }}/delete" hx-boost="false" class="inline">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <button class="btn btn-small btn-secondary" type="submit">Delete this {{ word('call') }}</button>

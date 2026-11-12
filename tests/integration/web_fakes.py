@@ -23,15 +23,24 @@ from previewit.adapters.persistence.memory import (
     InMemoryUserRepository,
 )
 from previewit.adapters.persistence.memory_calls import InMemoryCallRepository
+from previewit.adapters.persistence.memory_rubrics import InMemoryRubricRepository
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.app import build_app
 from previewit.application.artifacts import ArtifactRegistry
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService
+from previewit.application.criteria import CriterionRegistry
+from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
 from previewit.domain.identity import Email, ExternalClaims, Provider
 from previewit.domain.policy import DEFAULT_POLICY, VerificationPolicy
+from previewit.plugins.criteria import (
+    LevelsCriterion,
+    NumericCriterion,
+    TextCriterion,
+    YesNoCriterion,
+)
 from previewit.plugins.pdf import PdfArtifact
 from previewit.plugins.text import TextArtifact
 
@@ -109,8 +118,9 @@ def make_harness(
     )
     tenancy_repo = InMemoryTenancyRepository()
     tenancy = TenancyService(tenancy_repo, users, lambda: f"t{next(ids)}", clock, policy=policy)
+    call_repo = InMemoryCallRepository()
     calls = CallsService(
-        InMemoryCallRepository(),
+        call_repo,
         tenancy,
         tenancy_repo,
         users,
@@ -120,8 +130,17 @@ def make_harness(
         clock,
         policy=policy,
     )
+    rubrics = RubricsService(
+        InMemoryRubricRepository(),
+        call_repo,
+        tenancy,
+        CriterionRegistry(
+            [NumericCriterion(), LevelsCriterion(), YesNoCriterion(), TextCriterion()]
+        ),
+        lambda: f"r{next(ids)}",
+    )
     settings = Settings(secret_key="test-secret", base_url=base_url, verification_policy=policy)
-    app = build_app(settings, auth, verification, tenancy, calls, dict(providers or {}))
+    app = build_app(settings, auth, verification, tenancy, calls, rubrics, dict(providers or {}))
     client = TestClient(app, base_url=base_url, follow_redirects=False)
     return Harness(client, auth, outbox, clock, app, base_url)
 

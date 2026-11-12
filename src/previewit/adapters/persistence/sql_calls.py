@@ -31,6 +31,7 @@ from previewit.domain.calls import (
 )
 from previewit.domain.identity import UserId
 from previewit.domain.party import GroupParty, Party, UserParty
+from previewit.domain.rubrics import RubricId
 from previewit.domain.tenancy import OrgId, SpaceId
 
 
@@ -64,6 +65,7 @@ def _call(row: Row) -> Call:
         _opt_utc(row.closes_at),
         bool(row.published),
         UserId(row.created_by),
+        RubricId(row.rubric_id) if row.rubric_id else None,
     )
 
 
@@ -137,6 +139,11 @@ class SqlCallRepository:
                 .where(calls.c.space_id == space_id)
                 .order_by(calls.c.created_at, calls.c.id)
             ).all()
+        return [_call(r) for r in rows]
+
+    def calls_using_rubric(self, rubric_id: RubricId) -> list[Call]:
+        with self._engine.connect() as conn:
+            rows = conn.execute(select(calls).where(calls.c.rubric_id == rubric_id)).all()
         return [_call(r) for r in rows]
 
     # -- submissions and revisions ------------------------------------------------------
@@ -402,6 +409,7 @@ def _call_values(call: Call) -> dict[str, object]:
         "closes_at": call.closes_at,
         "published": call.published,
         "created_by": call.created_by,
+        "rubric_id": call.rubric_id,
     }
 
 

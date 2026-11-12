@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack">
+  <p class="crumb"><a href="/spaces">Spaces</a> / <a href="/spaces/{{ space_id }}">Back to the space</a></p>
+  <h1>Rubrics</h1>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <ul class="list">
+    {% for r in rubrics %}<li><a href="/rubrics/{{ r.id }}">{{ r.name }}</a></li>
+    {% else %}<li>No rubrics yet.</li>{% endfor %}
+  </ul>
+  <form method="post" action="/spaces/{{ space_id }}/rubrics" hx-boost="false" class="card form">
+    <h3>Create rubric</h3>
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <label class="field">Name <input type="text" name="name" maxlength="100" required></label>
+    <label class="field">Description <textarea name="description" rows="2" maxlength="1000"></textarea></label>
+    <label class="field">Start from
+      <select name="template">
+        <option value="">An empty rubric</option>
+        {% for t in templates %}<option value="{{ t.key }}">{{ t.name }}: {{ t.description }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit">Create rubric</button>
+  </form>
+</section>
+{% endblock %}
