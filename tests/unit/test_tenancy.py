@@ -36,11 +36,15 @@ MATRIX = [
     (OrgRole.OWNER, None, set(Permission)),
     (OrgRole.OWNER, "student", set(Permission)),
     (OrgRole.MEMBER, "teacher", set(Permission)),
-    (OrgRole.MEMBER, "assistant", {P.SPACE_VIEW, P.MEMBERS_INVITE, P.GROUPS_MANAGE}),
-    (OrgRole.MEMBER, "student", {P.SPACE_VIEW}),
+    (
+        OrgRole.MEMBER,
+        "assistant",
+        {P.SPACE_VIEW, P.MEMBERS_INVITE, P.GROUPS_MANAGE, P.SUBMIT, P.SUBMISSIONS_VIEW_ALL},
+    ),
+    (OrgRole.MEMBER, "student", {P.SPACE_VIEW, P.SUBMIT}),
     (OrgRole.MEMBER, None, set()),
     (None, None, set()),
-    (None, "student", {P.SPACE_VIEW}),
+    (None, "student", {P.SPACE_VIEW, P.SUBMIT}),
     (OrgRole.MEMBER, "role-that-does-not-exist", set()),
 ]
 

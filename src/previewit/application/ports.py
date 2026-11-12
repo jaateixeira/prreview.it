@@ -7,7 +7,20 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
+from previewit.domain.calls import (
+    Artifact,
+    Call,
+    CallId,
+    Revision,
+    RevisionInfo,
+    ShareGrant,
+    ShareLink,
+    ShareTarget,
+    Submission,
+    SubmissionId,
+)
 from previewit.domain.identity import Email, IdentityKey, User, UserId
+from previewit.domain.party import Party
 from previewit.domain.tenancy import (
     Group,
     GroupId,
@@ -165,3 +178,69 @@ class TenancyRepository(Protocol):
     def use_invite(self, invite_id: str, now: datetime) -> bool:
         """Atomically count one use if the invite is still usable. False if not."""
         ...
+
+
+class DuplicateSubmission(Exception):
+    """This party already has a submission for this call."""
+
+
+class CallRepository(Protocol):
+    """Calls, submissions, revisions and share links. Rows carry org_id; callers authorise first."""
+
+    def add_call(self, call: Call) -> None: ...
+
+    def get_call(self, call_id: CallId) -> Call | None: ...
+
+    def update_call(self, call: Call) -> None: ...
+
+    def delete_call(self, call_id: CallId) -> None: ...
+
+    def calls_in_space(self, space_id: SpaceId) -> list[Call]: ...
+
+    def add_submission(
+        self, submission: Submission, artifact: Artifact, created_by: UserId, now: datetime
+    ) -> Revision:
+        """Store the submission and its revision 1 together. May raise DuplicateSubmission."""
+        ...
+
+    def get_submission(self, submission_id: SubmissionId) -> Submission | None: ...
+
+    def submissions_in_call(self, call_id: CallId) -> list[Submission]: ...
+
+    def submissions_of_parties(
+        self, call_id: CallId, parties: Sequence[Party]
+    ) -> list[Submission]: ...
+
+    def add_revision(
+        self, submission_id: SubmissionId, artifact: Artifact, created_by: UserId, now: datetime
+    ) -> Revision:
+        """Append the next revision (numbers are 1, 2, 3, ... without gaps)."""
+        ...
+
+    def revision_infos(self, submission_id: SubmissionId) -> list[RevisionInfo]: ...
+
+    def get_revision(self, submission_id: SubmissionId, number: int) -> Revision | None: ...
+
+    def add_share_link(self, link: ShareLink) -> None: ...
+
+    def get_share_link(self, link_id: str) -> ShareLink | None: ...
+
+    def share_links_for(self, target: ShareTarget, target_id: str) -> list[ShareLink]: ...
+
+    def revoke_share_link(self, link_id: str) -> None: ...
+
+    def count_share_links(self, created_by: UserId) -> int: ...
+
+    def add_share_grant(self, grant: ShareGrant) -> None:
+        """Idempotent."""
+        ...
+
+    def has_share_grant(self, user_id: UserId, target: ShareTarget, target_id: str) -> bool: ...
+
+    def share_grants_for(self, user_id: UserId) -> list[ShareGrant]: ...
+
+
+class Entitlements(Protocol):
+    """What a user's plan allows. Limits are decided here, never by `if plan == ...`."""
+
+    def may_create_share(self, user_id: UserId, shares_so_far: int) -> bool: ...

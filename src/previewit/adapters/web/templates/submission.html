@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+{% set sub = view.submission %}
+<section class="stack">
+  <p class="crumb">{% if not view.guest %}<a href="/calls/{{ view.call.id }}">{{ view.call.title }}</a>{% else %}{{ view.call.title }}{% endif %}</p>
+  <h1>{{ sub.title }}</h1>
+  <p><small>By {{ view.author_name }}. Revision {{ shown.number }} of {{ view.revisions | length }}.</small></p>
+  {% if view.guest %}<p class="notice" role="status">You are viewing this through a share link.</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+  <div class="card artifact">{{ body | safe }}</div>
+  <p><a href="{{ raw_url }}">Open the original</a></p>
+
+  <h2>Revisions</h2>
+  <ul class="list">
+    {% for r in view.revisions | reverse %}
+    <li>{% if r.number == shown.number %}<strong>Revision {{ r.number }}</strong>{% else %}<a href="/submissions/{{ sub.id }}?rev={{ r.number }}">Revision {{ r.number }}</a>{% endif %}
+      <small>{{ r.created_at.strftime('%Y-%m-%d %H:%M') }} UTC, {{ r.size }} bytes</small></li>
+    {% endfor %}
+  </ul>
+  {% if view.can_revise %}
+  <form method="post" action="/submissions/{{ sub.id }}/revisions" enctype="multipart/form-data" hx-boost="false" class="card form">
+    <h3>Add a new revision</h3>
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    {% with t = view.artifact_type %}{% include "_upload_fields.html" %}{% endwith %}
+    <button class="btn" type="submit">Save revision</button>
+  </form>
+  {% endif %}
+  {% if view.can_share %}{% with base = '/submissions/' ~ sub.id %}{% include "_share_box.html" %}{% endwith %}{% endif %}
+</section>
+{% endblock %}

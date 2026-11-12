@@ -16,18 +16,24 @@ from starlette.requests import Request
 
 from previewit.adapters.auth.base import AuthFailed, ExternalProvider
 from previewit.adapters.auth.passwords import Argon2Hasher
+from previewit.adapters.entitlements import UnlimitedEntitlements
 from previewit.adapters.persistence.memory import (
     InMemoryEmailTokenRepository,
     InMemoryTenancyRepository,
     InMemoryUserRepository,
 )
+from previewit.adapters.persistence.memory_calls import InMemoryCallRepository
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.app import build_app
+from previewit.application.artifacts import ArtifactRegistry
 from previewit.application.auth import AuthService
+from previewit.application.calls import CallsService
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
 from previewit.domain.identity import Email, ExternalClaims, Provider
 from previewit.domain.policy import DEFAULT_POLICY, VerificationPolicy
+from previewit.plugins.pdf import PdfArtifact
+from previewit.plugins.text import TextArtifact
 
 
 class FakeProvider:
@@ -101,11 +107,21 @@ def make_harness(
     verification = VerificationService(
         users, InMemoryEmailTokenRepository(), outbox, base_url, clock
     )
-    tenancy = TenancyService(
-        InMemoryTenancyRepository(), users, lambda: f"t{next(ids)}", clock, policy=policy
+    tenancy_repo = InMemoryTenancyRepository()
+    tenancy = TenancyService(tenancy_repo, users, lambda: f"t{next(ids)}", clock, policy=policy)
+    calls = CallsService(
+        InMemoryCallRepository(),
+        tenancy,
+        tenancy_repo,
+        users,
+        ArtifactRegistry([TextArtifact(), PdfArtifact()]),
+        UnlimitedEntitlements(),
+        lambda: f"c{next(ids)}",
+        clock,
+        policy=policy,
     )
     settings = Settings(secret_key="test-secret", base_url=base_url, verification_policy=policy)
-    app = build_app(settings, auth, verification, tenancy, dict(providers or {}))
+    app = build_app(settings, auth, verification, tenancy, calls, dict(providers or {}))
     client = TestClient(app, base_url=base_url, follow_redirects=False)
     return Harness(client, auth, outbox, clock, app, base_url)
 

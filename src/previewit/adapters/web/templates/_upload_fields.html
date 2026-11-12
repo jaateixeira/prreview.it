@@ -1,0 +1,6 @@
+{# The input a plugin asks for: a text box or a file picker. Needs `t` (the artifact type). #}
+{% if t.input_kind == 'text' %}
+<label class="field">Your text <textarea name="text" rows="12" required></textarea></label>
+{% else %}
+<label class="field">File <input type="file" name="file" accept="{{ t.accept }}" required></label>
+{% endif %}

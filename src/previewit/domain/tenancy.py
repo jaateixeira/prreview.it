@@ -36,6 +36,9 @@ class Permission(StrEnum):
     MEMBERS_INVITE = "members.invite"
     MEMBERS_MANAGE = "members.manage"
     GROUPS_MANAGE = "groups.manage"
+    CALLS_MANAGE = "calls.manage"
+    SUBMIT = "submissions.create"
+    SUBMISSIONS_VIEW_ALL = "submissions.view_all"
 
 
 class OrgRole(StrEnum):
@@ -79,9 +82,11 @@ EDUCATION = Preset(
         RoleDef(
             "assistant",
             "Teaching assistant",
-            frozenset({P.SPACE_VIEW, P.MEMBERS_INVITE, P.GROUPS_MANAGE}),
+            frozenset(
+                {P.SPACE_VIEW, P.MEMBERS_INVITE, P.GROUPS_MANAGE, P.SUBMIT, P.SUBMISSIONS_VIEW_ALL}
+            ),
         ),
-        RoleDef("student", "Student", frozenset({P.SPACE_VIEW})),
+        RoleDef("student", "Student", frozenset({P.SPACE_VIEW, P.SUBMIT})),
     ),
     creator_role="teacher",
     default_role="student",
@@ -93,6 +98,10 @@ EDUCATION = Preset(
         "members": "participants",
         "group": "group",
         "groups": "groups",
+        "call": "assignment",
+        "calls": "assignments",
+        "submission": "submission",
+        "submissions": "submissions",
     },
 )
 
