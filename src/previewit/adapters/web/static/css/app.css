@@ -64,3 +64,5 @@ nav a:hover { text-decoration: underline; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-3);
   margin: 0 0 var(--space-4); }
 .facts dt { font-weight: 700; } .facts dd { margin: 0; }
+.notice { background: var(--color-ok-soft); color: var(--color-ok); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-s); }

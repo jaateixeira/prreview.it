@@ -67,3 +67,18 @@ def test_wrong_password_shows_a_clear_error(pages: AuthPages, page: Page):
     pages.log_out()
     pages.log_in(email, "not the password", succeeds=False)
     expect(page.get_by_role("alert")).to_contain_text("Wrong email or password")
+
+
+def test_user_confirms_their_email_from_the_mailed_link(pages: AuthPages, page: Page, outbox):
+    email = _email()
+    pages.sign_up(email)
+    page.goto(f"{pages.base_url}/account")
+    expect(page.get_by_text("not verified")).to_be_visible()
+
+    page.goto(outbox.link_for(email))
+    page.get_by_role("button", name="Confirm email").click()
+    expect(page.get_by_role("heading", name="Email confirmed")).to_be_visible()
+
+    page.goto(f"{pages.base_url}/account")
+    expect(page.get_by_text("verified", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="Resend verification email")).to_have_count(0)

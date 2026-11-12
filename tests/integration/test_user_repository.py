@@ -19,9 +19,9 @@ POSTGRES_URL = os.environ.get("PREVIEWIT_TEST_POSTGRES_URL")
 
 def _clean_postgres(url: str) -> None:
     engine = create_engine(url)
-    with engine.begin() as conn:
-        for table in ("external_identities", "users", "alembic_version"):
-            conn.exec_driver_sql(f"DROP TABLE IF EXISTS {table}")
+    with engine.begin() as conn:  # wipe everything, so new tables never need listing here
+        conn.exec_driver_sql("DROP SCHEMA public CASCADE")
+        conn.exec_driver_sql("CREATE SCHEMA public")
     engine.dispose()
 
 
@@ -145,3 +145,12 @@ def test_upgrade_is_idempotent(tmp_path):
     url = f"sqlite:///{tmp_path / 'm.db'}"
     upgrade(url)
     upgrade(url)
+
+
+def test_mark_email_verified_only_for_the_current_email(repo: UserRepository):
+    repo.add_user(_user(), None)
+    assert not repo.mark_email_verified(UserId("u1"), Email("other@x.fi"))
+    assert not repo.mark_email_verified(UserId("nope"), Email("a@x.fi"))
+    assert repo.mark_email_verified(UserId("u1"), Email("A@x.fi"))
+    user = repo.get(UserId("u1"))
+    assert user is not None and user.email_verified

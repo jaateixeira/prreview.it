@@ -35,3 +35,15 @@ external_identities = Table(
     Column("user_id", String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
     Index("ix_external_identities_user_id", "user_id"),
 )
+
+email_verifications = Table(
+    "email_verifications",
+    metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("user_id", String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("email", String(254), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True), nullable=True),
+    Index("ix_email_verifications_user_id", "user_id"),
+)

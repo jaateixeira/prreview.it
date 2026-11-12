@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 
 from fastapi import APIRouter, Request
@@ -27,7 +28,11 @@ from previewit.application.auth import (
     InvalidCredentials,
     WeakPassword,
 )
+from previewit.application.ports import MailError
+from previewit.application.verification import SendResult, VerificationService
 from previewit.domain.identity import InvalidEmail, Provider, User
+
+log = logging.getLogger(__name__)
 
 PROVIDER_LABELS = {
     Provider.GOOGLE: "Google",
@@ -39,6 +44,7 @@ PROVIDER_LABELS = {
 def build_auth_router(
     *,
     auth: AuthService,
+    verification: VerificationService,
     providers: Mapping[Provider, ExternalProvider],
     settings: Settings,
     templates: Jinja2Templates,
@@ -135,6 +141,7 @@ def build_auth_router(
         except EmailTaken:
             error = "An account with this email already exists. Log in instead."
         else:
+            await send_verification(user)
             return logged_in(user, next_url)
         return render(
             request,
@@ -157,17 +164,68 @@ def build_auth_router(
         clear_session_cookie(response)
         return response
 
+    async def send_verification(user: User) -> SendResult | None:
+        try:
+            return await run_in_threadpool(verification.send, user)
+        except (MailError, OSError):
+            log.warning("could not send verification mail", exc_info=True)
+            return None
+
+    def account_page(request: Request, user: User, notice: str | None = None) -> Response:
+        linked = sorted(PROVIDER_LABELS[k.provider] for k in user.identities)
+        return render(
+            request,
+            "account.html",
+            {"page_title": "Your account", "account": user, "linked": linked, "notice": notice},
+        )
+
+    @router.get("/verify", response_class=HTMLResponse)
+    async def verify_page(request: Request, token: str = "") -> Response:
+        # GET never consumes the token: mail scanners and prefetchers open links.
+        return render(request, "verify.html", {"page_title": "Confirm your email", "token": token})
+
+    @router.post("/verify")
+    async def verify(request: Request) -> Response:
+        form = await checked_form(request)
+        if form is None:
+            return forbidden()
+        confirmed = await run_in_threadpool(verification.confirm, text(form, "token"))
+        if confirmed is None:
+            return render(
+                request,
+                "verify.html",
+                {
+                    "page_title": "Confirm your email",
+                    "token": "",
+                    "error": "This link is invalid or has expired. Log in and request a new one.",
+                },
+                status=400,
+            )
+        return render(request, "verify.html", {"page_title": "Email confirmed", "done": True})
+
+    @router.post("/account/verify/resend")
+    async def resend(request: Request) -> Response:
+        if await checked_form(request) is None:
+            return forbidden()
+        user: User | None = request.state.user
+        if user is None:
+            return RedirectResponse("/login?next=%2Faccount", status_code=303)
+        result = await send_verification(user)
+        notice = {
+            SendResult.SENT: "Verification email sent. Check your inbox.",
+            SendResult.TOO_SOON: "Please wait a minute before asking for another email.",
+            SendResult.ALREADY_VERIFIED: "Your email is already verified.",
+            SendResult.NO_EMAIL: "Your account has no email address to verify.",
+            None: "We could not send the email right now. Try again later.",
+        }[result]
+        return account_page(request, user, notice)
+
     @router.get("/account", response_class=HTMLResponse)
     async def account(request: Request) -> Response:
         user: User | None = request.state.user
         if user is None:
             return RedirectResponse("/login?next=%2Faccount", status_code=303)
-        linked = sorted(PROVIDER_LABELS[k.provider] for k in user.identities)
-        return render(
-            request,
-            "account.html",
-            {"page_title": "Your account", "account": user, "linked": linked},
-        )
+        return account_page(request, user)
 
     def failed_login(request: Request, name: str, next_url: str) -> Response:
         request.session.clear()
