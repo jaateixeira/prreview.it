@@ -1,4 +1,5 @@
 import re
+from collections.abc import Mapping
 
 from fastapi.testclient import TestClient
 
@@ -17,7 +18,13 @@ def signup(client: TestClient, email: str, name: str, next_: str = "/spaces") ->
     assert r.status_code == 303, r.text
 
 
-def post(client: TestClient, path: str, data: dict[str, str] | None = None, *, page="/spaces"):
+def post(
+    client: TestClient,
+    path: str,
+    data: Mapping[str, str | list[str]] | None = None,
+    *,
+    page="/spaces",
+):
     return client.post(path, data={"csrf": csrf_token(client, page), **(data or {})})
 
 
@@ -40,8 +47,8 @@ class Course:
         assert r.status_code == 303
         self.space = r.headers["location"]  # /spaces/<id>
 
-    def invite_link(self, role: str = "student") -> str:
-        r = post(self.teacher, f"{self.space}/invites", {"role": role}, page=self.space)
+    def invite_link(self, roles: tuple[str, ...] = ("author", "reviewer")) -> str:
+        r = post(self.teacher, f"{self.space}/invites", {"roles": list(roles)}, page=self.space)
         assert r.status_code == 200
         match = re.search(r"/join/[A-Za-z0-9_-]+", r.text)
         assert match, r.text
@@ -103,7 +110,7 @@ def test_the_link_page_shows_only_the_basics_to_anonymous_visitors():
     anon = c.h.new_client()
     page = anon.get(link)
     assert page.status_code == 200
-    assert "Software Engineering" in page.text and "Student" in page.text
+    assert "Software Engineering" in page.text and "Author, reviewer" in page.text
     assert f"/login?next={link}" in page.text and f"/signup?next={link}" in page.text
     assert "sam@" not in page.text and "tina@" not in page.text
 
@@ -130,7 +137,8 @@ def test_outsiders_get_404_for_everything_in_the_course():
     assert stranger.get(c.org_path).status_code == 404
     for path in ("/invites", "/groups", "/members/x/remove", "/members/x/role"):
         assert (
-            post(stranger, f"{c.space}{path}", {"name": "x", "role": "teacher"}).status_code == 404
+            post(stranger, f"{c.space}{path}", {"name": "x", "roles": ["organizer"]}).status_code
+            == 404
         )
 
 
@@ -138,10 +146,10 @@ def test_students_are_forbidden_from_managing_things():
     c = Course()
     student = c.join_student()
     forbidden = [
-        (f"{c.space}/invites", {"role": "student"}),
+        (f"{c.space}/invites", {"roles": ["author"]}),
         (f"{c.space}/groups", {"name": "G"}),
         (f"{c.space}/members/anyone/remove", {}),
-        (f"{c.space}/members/anyone/role", {"role": "teacher"}),
+        (f"{c.space}/members/anyone/role", {"roles": ["organizer"]}),
         (f"{c.org_path}/spaces", {"name": "Mine"}),
     ]
     for path, data in forbidden:
@@ -188,11 +196,11 @@ def test_teacher_changes_roles_and_removes_members():
     sam_id = re.findall(r"/members/([A-Za-z0-9_-]+)/role", page)[-1]
     assert (
         post(
-            c.teacher, f"{c.space}/members/{sam_id}/role", {"role": "assistant"}, page=c.space
+            c.teacher, f"{c.space}/members/{sam_id}/role", {"roles": ["organizer"]}, page=c.space
         ).status_code
         == 303
     )
-    assert "Create invite link" in student.get(c.space).text  # assistants may invite
+    assert "Create invite link" in student.get(c.space).text  # organizers may invite
     assert post(c.teacher, f"{c.space}/members/{sam_id}/remove", page=c.space).status_code == 303
     assert student.get(c.space).status_code == 404
 

@@ -31,6 +31,7 @@ from previewit.domain.tenancy import (
     Organization,
     OrgId,
     OrgRole,
+    Roles,
     Space,
     SpaceId,
     SpaceMember,
@@ -173,7 +174,7 @@ class TenancyRepository(Protocol):
         """Idempotent: an existing membership (and its role) is kept."""
         ...
 
-    def set_space_member_role(self, space_id: SpaceId, user_id: UserId, role_key: str) -> None: ...
+    def set_space_member_roles(self, space_id: SpaceId, user_id: UserId, roles: Roles) -> None: ...
     def remove_space_member(self, space_id: SpaceId, user_id: UserId) -> None:
         """Also removes the user from every group of the space."""
         ...

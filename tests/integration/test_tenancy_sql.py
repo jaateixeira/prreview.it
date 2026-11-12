@@ -18,6 +18,7 @@ from previewit.adapters.persistence.tables import (
     space_members,
     spaces,
 )
+from previewit.domain.tenancy import DEFAULT_ROLES, format_roles
 from tests.integration.test_user_repository import _clean_postgres
 from tests.unit import test_tenancy_service as base
 
@@ -58,7 +59,7 @@ def test_a_child_row_cannot_name_a_different_tenant_than_its_parent(w: base.Worl
     with pytest.raises(IntegrityError), engine.begin() as conn:
         conn.execute(
             insert(space_members).values(
-                space_id=w.s.id, org_id=wrong_org, user_id="zed", role_key="student"
+                space_id=w.s.id, org_id=wrong_org, user_id="zed", roles=format_roles(DEFAULT_ROLES)
             )
         )
     with pytest.raises(IntegrityError), engine.begin() as conn:
@@ -69,7 +70,7 @@ def test_a_child_row_cannot_name_a_different_tenant_than_its_parent(w: base.Worl
                 id="i",
                 org_id=wrong_org,
                 space_id=w.s.id,
-                role_key="student",
+                roles=format_roles(DEFAULT_ROLES),
                 created_by="alice",
                 expires_at=w.clock.now,
                 uses=0,

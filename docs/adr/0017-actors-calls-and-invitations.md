@@ -29,6 +29,7 @@ The calls travel as links that carry a token. It should not matter where a perso
 
 ## Consequences
 - **Delivery in steps**, each its own pull request: (A) this ADR and the documentation; (B) fixed roles and a data migration; (C) public or protected access on the call for authors; (D) reviewer invitations and review by invitation.
+- **Done in B.** Migration `0009` and the code follow. Self-service: an organizer may add a role to themselves but not drop one. Automatic allocation draws only from members with the reviewer role (every author is still reviewed). By hand, an organizer may be paired as a reviewer without holding the role, as ADR 0014 allows.
 - **Migration in B.** `teacher` becomes organizer. `assistant` becomes organizer, which is broader than the old assistant: it is the only fixed role that can see all submissions and manage groups. `student` becomes author and reviewer. Preset roles and `can_grant` are replaced by a fixed matrix of role to permissions.
 - **Auditor** is reserved: a read-only role over reviews, the allocation and the edit trail. Its rules for anonymity are not decided.
 - **Open points.** Whether invitations and protected-call links count toward the 100-share free limit (the organizer pays above it, as with shares). Whether an open reviewer link per Round (anyone may claim reviews) is added later.

@@ -61,3 +61,41 @@ def test_teacher_invites_a_student_who_joins_and_is_put_in_a_group(
         expect(student.locator(".group")).to_contain_text("Team Red")
     finally:
         student_context.close()
+
+
+def test_organizer_chooses_roles_in_a_link_and_changes_them_later(
+    page: Page, browser: Browser, base_url: str
+):
+    _sign_up(page, base_url, "Olga Organizer")
+    page.get_by_label("Name").fill("Open Source Review")
+    page.get_by_role("button", name="Create organization").click()
+    page.get_by_label("Name").fill("Release review")
+    page.get_by_role("button", name="Create course").click()
+
+    # A link for reviewers only: tick Reviewer, untick Author
+    page.get_by_role("group", name="Roles", exact=True).get_by_label("Author").uncheck()
+    page.get_by_role("button", name="Create invite link").click()
+    link = page.locator("code.link").inner_text()
+
+    guest_context = browser.new_context()
+    try:
+        guest = guest_context.new_page()
+        guest.goto(link)
+        expect(guest.get_by_text("invites you as")).to_contain_text("Reviewer")
+        guest.get_by_role("link", name="Create an account").click()
+        guest.get_by_label("Name").fill("Gus Guest")
+        guest.get_by_label("Email").fill(f"{uuid.uuid4().hex[:8]}@example.org")
+        guest.get_by_label("Password").fill(PASSWORD)
+        guest.get_by_role("button", name="Sign up").click()
+        guest.get_by_role("button", name="Join").click()
+        expect(guest.get_by_role("button", name="Create invite link")).to_have_count(0)
+
+        # The organizer also makes Gus an organizer (a teacher, in the Education preset)
+        page.reload()
+        member = page.locator("li", has_text="Gus Guest")
+        member.get_by_label("Teacher").check()  # the Education word for organizer
+        member.get_by_role("button", name="Change roles").click()
+        guest.reload()
+        expect(guest.get_by_role("button", name="Create invite link")).to_be_visible()
+    finally:
+        guest_context.close()

@@ -17,6 +17,10 @@ def _config(url: str) -> Config:
     return config
 
 
-def upgrade(url: str) -> None:
-    """Bring the database at `url` to the latest schema."""
-    command.upgrade(_config(url), "head")
+def upgrade(url: str, revision: str = "head") -> None:
+    """Bring the database at `url` to `revision` (the latest schema by default)."""
+    command.upgrade(_config(url), revision)
+
+
+def downgrade(url: str, revision: str) -> None:
+    command.downgrade(_config(url), revision)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import secrets
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -12,21 +12,27 @@ from previewit.application.verification import hash_token
 from previewit.domain.identity import UserId
 from previewit.domain.policy import DEFAULT_POLICY, Action, VerificationPolicy
 from previewit.domain.tenancy import (
+    CREATOR_ROLES,
+    DEFAULT_ROLES,
     Group,
     GroupId,
+    InvalidRole,
     Invite,
     Organization,
     OrgId,
     OrgRole,
     Permission,
     Preset,
+    Roles,
     Space,
     SpaceId,
     SpaceMember,
     can_grant,
     clean_name,
+    coerce_roles,
     get_preset,
     permissions,
+    role_permissions,
 )
 
 DEFAULT_INVITE_TTL = timedelta(days=7)
@@ -61,7 +67,7 @@ class SpaceView:
     space: Space
     organization: Organization
     preset: Preset
-    role_key: str | None  # None for an organization owner who is not a member
+    roles: Roles  # empty for an organization owner who is not a member
     permissions: frozenset[Permission]
 
 
@@ -70,7 +76,7 @@ class MemberView:
     user_id: UserId
     display_name: str
     email: str | None  # only shown to people who may manage members
-    role_key: str
+    roles: Roles
 
 
 @dataclass(frozen=True)
@@ -126,9 +132,8 @@ class TenancyService:
             raise NotFound
         if role is not OrgRole.OWNER:
             raise Forbidden
-        preset = _preset_of(org)
         space = Space(SpaceId(self._new_id()), org_id, clean_name(name))
-        self._repo.add_space(space, SpaceMember(org_id, space.id, actor, preset.creator_role))
+        self._repo.add_space(space, SpaceMember(org_id, space.id, actor, CREATOR_ROLES))
         return space
 
     def my_spaces(self, actor: UserId) -> list[tuple[Space, Organization]]:
@@ -158,16 +163,19 @@ class TenancyService:
             user = people.get(member.user_id)
             name = user.display_name if user else "Unknown"
             email = user.email.value if user and user.email and show_email else None
-            result.append(MemberView(member.user_id, name, email, member.role_key))
+            result.append(MemberView(member.user_id, name, email, member.roles))
         return sorted(result, key=lambda m: (m.display_name.lower(), m.user_id))
 
-    def change_role(self, actor: UserId, space_id: SpaceId, target: UserId, role_key: str) -> None:
+    def change_roles(
+        self, actor: UserId, space_id: SpaceId, target: UserId, roles: Iterable[str]
+    ) -> None:
         view = self._require(actor, space_id, Permission.MEMBERS_MANAGE)
-        if target == actor or not can_grant(view.preset, view.permissions, role_key):
-            raise Forbidden
+        granted = self._grantable(view, roles)
         member = self._member_or_raise(space_id, target)
+        if target == actor and not granted >= member.roles:
+            raise Forbidden  # you may add roles to yourself, never drop one (no lock-out)
         self._require_not_above(view, member)
-        self._repo.set_space_member_role(space_id, target, role_key)
+        self._repo.set_space_member_roles(space_id, target, granted)
 
     def remove_member(self, actor: UserId, space_id: SpaceId, target: UserId) -> None:
         view = self._require(actor, space_id, Permission.MEMBERS_MANAGE)
@@ -184,21 +192,19 @@ class TenancyService:
         actor: UserId,
         space_id: SpaceId,
         *,
-        role_key: str | None = None,
+        roles: Iterable[str] | None = None,
         ttl: timedelta = DEFAULT_INVITE_TTL,
         max_uses: int | None = None,
     ) -> tuple[Invite, str]:
         view = self._require(actor, space_id, Permission.MEMBERS_INVITE)
         self._need_verified(actor, Action.INVITE)
-        role = role_key or view.preset.default_role
-        if not can_grant(view.preset, view.permissions, role):
-            raise Forbidden
+        granted = DEFAULT_ROLES if roles is None else self._grantable(view, roles)
         token = secrets.token_urlsafe(32)
         invite = Invite(
             id=hash_token(token),
             org_id=view.space.org_id,
             space_id=space_id,
-            role_key=role,
+            roles=granted,
             created_by=actor,
             expires_at=self._now() + ttl,
             max_uses=max_uses,
@@ -236,7 +242,7 @@ class TenancyService:
         if not self._repo.use_invite(invite.id, self._now()):
             raise InvalidInvite
         self._repo.add_org_member(space.org_id, actor, OrgRole.MEMBER)
-        self._repo.add_space_member(SpaceMember(space.org_id, space.id, actor, invite.role_key))
+        self._repo.add_space_member(SpaceMember(space.org_id, space.id, actor, invite.roles))
         return space
 
     # -- groups --------------------------------------------------------------------------------
@@ -302,11 +308,11 @@ class TenancyService:
             raise NotFound
         preset = _preset_of(org)
         member = self._repo.space_member(space_id, actor)
-        role_key = member.role_key if member else None
-        granted = permissions(preset, self._repo.org_role(org.id, actor), role_key)
+        roles: Roles = member.roles if member else frozenset()
+        granted = permissions(self._repo.org_role(org.id, actor), roles)
         if Permission.SPACE_VIEW not in granted:
             raise NotFound  # outsiders cannot tell the space exists
-        return SpaceView(space, org, preset, role_key, granted)
+        return SpaceView(space, org, preset, roles, granted)
 
     def _require(self, actor: UserId, space_id: SpaceId, needed: Permission) -> SpaceView:
         view = self._view(actor, space_id)
@@ -322,9 +328,19 @@ class TenancyService:
 
     @staticmethod
     def _require_not_above(view: SpaceView, member: SpaceMember) -> None:
-        role = view.preset.role(member.role_key)
-        if role is not None and not role.permissions <= view.permissions:
+        if not role_permissions(member.roles) <= view.permissions:
             raise Forbidden
+
+    @staticmethod
+    def _grantable(view: SpaceView, names: Iterable[str]) -> Roles:
+        """The roles named, if they exist and are no stronger than the actor's own."""
+        try:
+            roles = coerce_roles(names)
+        except InvalidRole:
+            raise Forbidden from None
+        if not can_grant(view.permissions, roles):
+            raise Forbidden
+        return roles
 
     def _group_or_raise(self, space_id: SpaceId, group_id: GroupId) -> Group:
         group = self._repo.get_group(group_id)
@@ -342,8 +358,7 @@ class TenancyService:
         org = self._repo.get_org(invite.org_id)
         if space is None or org is None:
             return None
-        role = _preset_of(org).role(invite.role_key)
-        label = role.label if role else invite.role_key
+        label = _preset_of(org).role_label(invite.roles).capitalize()
         return invite, InvitePreview(space.name, org.name, label)
 
 

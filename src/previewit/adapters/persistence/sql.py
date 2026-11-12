@@ -30,9 +30,12 @@ from previewit.domain.tenancy import (
     Organization,
     OrgId,
     OrgRole,
+    Roles,
     Space,
     SpaceId,
     SpaceMember,
+    format_roles,
+    parse_roles,
 )
 
 
@@ -348,12 +351,12 @@ class SqlTenancyRepository:
         except IntegrityError:
             pass
 
-    def set_space_member_role(self, space_id: SpaceId, user_id: UserId, role_key: str) -> None:
+    def set_space_member_roles(self, space_id: SpaceId, user_id: UserId, roles: Roles) -> None:
         with self._engine.begin() as conn:
             conn.execute(
                 update(space_members)
                 .where(space_members.c.space_id == space_id, space_members.c.user_id == user_id)
-                .values(role_key=role_key)
+                .values(roles=format_roles(roles))
             )
 
     def remove_space_member(self, space_id: SpaceId, user_id: UserId) -> None:
@@ -460,7 +463,7 @@ class SqlTenancyRepository:
                     id=invite.id,
                     org_id=invite.org_id,
                     space_id=invite.space_id,
-                    role_key=invite.role_key,
+                    roles=format_roles(invite.roles),
                     created_by=invite.created_by,
                     expires_at=invite.expires_at,
                     max_uses=invite.max_uses,
@@ -475,7 +478,7 @@ class SqlTenancyRepository:
             id=row.id,
             org_id=OrgId(row.org_id),
             space_id=SpaceId(row.space_id),
-            role_key=row.role_key,
+            roles=parse_roles(row.roles),
             created_by=UserId(row.created_by),
             expires_at=_utc(row.expires_at),
             max_uses=row.max_uses,
@@ -520,9 +523,11 @@ def _member_values(member: SpaceMember) -> dict[str, str]:
         "space_id": member.space_id,
         "org_id": member.org_id,
         "user_id": member.user_id,
-        "role_key": member.role_key,
+        "roles": format_roles(member.roles),
     }
 
 
 def _to_member(row: Row) -> SpaceMember:
-    return SpaceMember(OrgId(row.org_id), SpaceId(row.space_id), UserId(row.user_id), row.role_key)
+    return SpaceMember(
+        OrgId(row.org_id), SpaceId(row.space_id), UserId(row.user_id), parse_roles(row.roles)
+    )

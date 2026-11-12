@@ -15,6 +15,7 @@ from previewit.domain.tenancy import (
     Organization,
     OrgId,
     OrgRole,
+    Roles,
     Space,
     SpaceId,
     SpaceMember,
@@ -176,9 +177,9 @@ class InMemoryTenancyRepository:
     def add_space_member(self, member: SpaceMember) -> None:
         self._space_members.setdefault((member.space_id, member.user_id), member)
 
-    def set_space_member_role(self, space_id: SpaceId, user_id: UserId, role_key: str) -> None:
+    def set_space_member_roles(self, space_id: SpaceId, user_id: UserId, roles: Roles) -> None:
         current = self._space_members[(space_id, user_id)]
-        self._space_members[(space_id, user_id)] = replace(current, role_key=role_key)
+        self._space_members[(space_id, user_id)] = replace(current, roles=roles)
 
     def remove_space_member(self, space_id: SpaceId, user_id: UserId) -> None:
         self._space_members.pop((space_id, user_id), None)
