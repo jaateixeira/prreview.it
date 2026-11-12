@@ -14,7 +14,7 @@ M1 needs tenants, a place where a round happens (a space: a course in the Educat
 - **Invite links**: 256-bit secret, only its SHA-256 stored, expiry (default 7 days, at most 90), optional maximum uses, revocable. The secret is shown once, at creation. Using a link is one conditional UPDATE, so concurrent joins cannot exceed the limit. Someone already in the space is sent there without using a seat and is never demoted, even if the link is spent.
 - **Tenant isolation in the schema.** Every tenant-owned table has `org_id`. Child rows reference their parent with a composite foreign key `(space_id, org_id)`, so a row cannot name a different tenant than its parent. SQLite enforces foreign keys through `make_engine`.
 - **Member lists** show display names to everyone in the space and email addresses only to people who may manage members.
-- **Review gate (decision):** unverified users may be invited, join, and submit, but cannot review. This is `User.can_review`; the review milestone enforces it.
+- **Review gate (decision):** unverified users may be invited, join, and submit, but cannot review. This is now the default of the configurable verification policy (ADR 0010).
 
 ## Consequences
 - Groups are per space and list members; a group is addressable as a `GroupParty` once calls and submissions exist (M2).

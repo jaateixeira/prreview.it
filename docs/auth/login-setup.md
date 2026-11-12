@@ -1,5 +1,42 @@
 # Login setup
 
+Settings come from an optional TOML file and from `PREVIEWIT_*` environment variables. A variable overrides the same setting in the file. Variable names below are the environment form; the file form is in [`previewit.example.toml`](../../previewit.example.toml).
+
+## Configuration file
+
+The file is read from `PREVIEWIT_CONFIG` (an error if it is missing), else `./previewit.toml`, else `/etc/previewit/previewit.toml`. With none of them, only environment variables apply.
+
+```toml
+[server]   # base_url, secret_key or secret_key_file
+[database] # url
+[mail]     # smtp_host, smtp_port, smtp_user, smtp_password, smtp_security, from
+[policy]   # require_verified_email_for
+[login.google] [login.apple] [login.haka]
+```
+
+- Unknown sections, keys, actions and wrong types stop the server at start, naming the setting.
+- Relative file paths (`secret_key_file`, `private_key_file`, HAKA certificates) are relative to the config file.
+- If the file holds secrets and is readable by group or others, the server logs a warning: `chmod 600` it.
+
+### Email verification policy
+
+Which actions need a verified email address:
+
+```toml
+[policy]
+require_verified_email_for = ["review"]   # the default
+```
+
+| Action | Gate |
+|---|---|
+| `create_organization` | Creating an organization. |
+| `invite` | Creating invitation links. |
+| `join` | Joining a space through a link. A refused attempt does not use up the link. |
+| `submit` | Submitting work (enforced from M2). |
+| `review` | Writing a review (enforced from M2). |
+
+Signing in and receiving invitations are never gated. `[]` requires nothing; the same via the environment is `PREVIEWIT_REQUIRE_VERIFIED_EMAIL_FOR="review,submit"` (empty string for none).
+
 Email + password works with no configuration. Google, Apple and HAKA switch on when their variables are set. Setting only some of a provider's variables stops the server at startup and names what is missing.
 
 ## Core

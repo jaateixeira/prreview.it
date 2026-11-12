@@ -13,8 +13,10 @@ from previewit.application.tenancy import (
     NotAMember,
     NotFound,
     TenancyService,
+    VerificationRequired,
 )
 from previewit.domain.identity import Email, User, UserId
+from previewit.domain.policy import Action, VerificationPolicy
 from previewit.domain.tenancy import InvalidName, OrgRole
 
 T0 = datetime(2026, 11, 12, 12, 0, tzinfo=UTC)
@@ -317,3 +319,73 @@ def test_a_group_id_from_another_space_is_not_found(w: World):
     with pytest.raises(NotFound):
         w.t.delete_group(TINA, w.s.id, foreign.id)
     assert w.t.groups(ALICE, other.id)[0].name == "Elsewhere"
+
+
+# --- the email-verification policy -------------------------------------------------------
+
+
+def _policy_service(required: frozenset[Action]):
+    users = InMemoryUserRepository()
+    for uid, verified in (("ver", True), ("unver", False)):
+        users.add_user(
+            User(UserId(uid), uid, Email(f"{uid}@x.fi"), verified, frozenset(), False), None
+        )
+    ids = count(1)
+    svc = TenancyService(
+        InMemoryTenancyRepository(),
+        users,
+        lambda: f"id{next(ids)}",
+        Clock(),
+        policy=VerificationPolicy(required),
+    )
+    return svc, UserId("ver"), UserId("unver")
+
+
+def test_default_policy_lets_unverified_users_create_invite_and_join():
+    default = TenancyService(InMemoryTenancyRepository(), InMemoryUserRepository(), str, Clock())
+    assert default is not None  # constructing without a policy must keep working
+    svc, ver, unver = _policy_service(frozenset())
+    org = svc.create_organization(unver, "Org", "education")
+    space = svc.create_space(unver, org.id, "Course")
+    _, token = svc.create_invite(unver, space.id)
+    assert svc.accept_invite(ver, token).id == space.id
+
+
+def test_create_organization_can_require_a_verified_email():
+    svc, ver, unver = _policy_service(frozenset({Action.CREATE_ORGANIZATION}))
+    with pytest.raises(VerificationRequired) as e:
+        svc.create_organization(unver, "Org", "education")
+    assert e.value.action is Action.CREATE_ORGANIZATION
+    assert svc.my_organizations(unver) == []  # nothing was created
+    assert svc.create_organization(ver, "Org", "education").name == "Org"
+
+
+def test_inviting_can_require_a_verified_email():
+    svc, ver, _unver = _policy_service(frozenset({Action.INVITE}))
+    org = svc.create_organization(ver, "Org", "education")
+    space = svc.create_space(ver, org.id, "Course")
+    assert svc.create_invite(ver, space.id)  # verified owner may
+    strict, _ver2, unver2 = _policy_service(frozenset({Action.INVITE}))
+    org2 = strict.create_organization(unver2, "Org", "education")
+    space2 = strict.create_space(unver2, org2.id, "Course")
+    with pytest.raises(VerificationRequired):
+        strict.create_invite(unver2, space2.id)
+    assert strict.invites(unver2, space2.id) == []
+
+
+def test_joining_can_require_a_verified_email_and_keeps_the_link_unused():
+    svc, ver, unver = _policy_service(frozenset({Action.JOIN}))
+    org = svc.create_organization(ver, "Org", "education")
+    space = svc.create_space(ver, org.id, "Course")
+    invite, token = svc.create_invite(ver, space.id, max_uses=1)
+    with pytest.raises(VerificationRequired):
+        svc.accept_invite(unver, token)
+    assert svc.invites(ver, space.id)[0].uses == 0  # a refused attempt does not burn the link
+    assert svc.accept_invite(ver, token).id == space.id
+    assert invite.max_uses == 1
+
+
+def test_a_bad_link_is_reported_as_invalid_before_the_verification_requirement():
+    svc, _ver, unver = _policy_service(frozenset({Action.JOIN}))
+    with pytest.raises(InvalidInvite):
+        svc.accept_invite(unver, "garbage")

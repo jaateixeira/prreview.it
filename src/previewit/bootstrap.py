@@ -18,7 +18,7 @@ from previewit.adapters.persistence.sql import (
     SqlTenancyRepository,
     SqlUserRepository,
 )
-from previewit.adapters.settings import Settings
+from previewit.adapters.settings import Settings, load_settings
 from previewit.adapters.web.app import build_app
 from previewit.application.auth import AuthService
 from previewit.application.ports import Mailer
@@ -27,7 +27,7 @@ from previewit.application.verification import VerificationService
 
 
 def create_app() -> FastAPI:
-    settings = Settings.from_env(os.environ)
+    settings = load_settings(os.environ)
     # Dev convenience: SQLite is migrated automatically. PostgreSQL is migrated explicitly.
     if settings.database_url.startswith("sqlite"):
         upgrade(settings.database_url)
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
         users,
         lambda: uuid.uuid4().hex,
         lambda: datetime.now(UTC),
+        policy=settings.verification_policy,
     )
     return build_app(settings, auth, verification, tenancy, providers)
 

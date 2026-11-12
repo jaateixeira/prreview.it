@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from previewit.application.ports import TenancyRepository, UserRepository
 from previewit.application.verification import hash_token
 from previewit.domain.identity import UserId
+from previewit.domain.policy import DEFAULT_POLICY, Action, VerificationPolicy
 from previewit.domain.tenancy import (
     Group,
     GroupId,
@@ -37,6 +38,14 @@ class NotFound(Exception):
 
 class Forbidden(Exception):
     """You can see this, but may not do that."""
+
+
+class VerificationRequired(Exception):
+    """The operator's policy requires a verified email address for this action."""
+
+    def __init__(self, action: Action) -> None:
+        super().__init__(f"a verified email is required to {action.value}")
+        self.action = action
 
 
 class NotAMember(Exception):
@@ -78,7 +87,10 @@ class TenancyService:
         users: UserRepository,
         new_id: Callable[[], str],
         now: Callable[[], datetime],
+        *,
+        policy: VerificationPolicy = DEFAULT_POLICY,
     ) -> None:
+        self._policy = policy
         self._repo = repo
         self._users = users
         self._new_id = new_id
@@ -87,6 +99,7 @@ class TenancyService:
     # -- organizations --------------------------------------------------------------
 
     def create_organization(self, actor: UserId, name: str, preset_key: str) -> Organization:
+        self._need_verified(actor, Action.CREATE_ORGANIZATION)
         if get_preset(preset_key) is None:
             raise ValueError(f"unknown preset: {preset_key}")
         org = Organization(OrgId(self._new_id()), clean_name(name), preset_key)
@@ -176,6 +189,7 @@ class TenancyService:
         max_uses: int | None = None,
     ) -> tuple[Invite, str]:
         view = self._require(actor, space_id, Permission.MEMBERS_INVITE)
+        self._need_verified(actor, Action.INVITE)
         role = role_key or view.preset.default_role
         if not can_grant(view.preset, view.permissions, role):
             raise Forbidden
@@ -216,7 +230,10 @@ class TenancyService:
             raise InvalidInvite
         if self._repo.space_member(space.id, actor) is not None:
             return space  # already in: no seat used, never a demotion, even if the link is spent
-        if not invite.usable(self._now()) or not self._repo.use_invite(invite.id, self._now()):
+        if not invite.usable(self._now()):
+            raise InvalidInvite
+        self._need_verified(actor, Action.JOIN)  # checked before the link is used up
+        if not self._repo.use_invite(invite.id, self._now()):
             raise InvalidInvite
         self._repo.add_org_member(space.org_id, actor, OrgRole.MEMBER)
         self._repo.add_space_member(SpaceMember(space.org_id, space.id, actor, invite.role_key))
@@ -270,6 +287,13 @@ class TenancyService:
         self._repo.remove_group_member(group_id, user_id)
 
     # -- helpers ---------------------------------------------------------------------------------
+
+    def _need_verified(self, actor: UserId, action: Action) -> None:
+        if action not in self._policy.required_for:
+            return
+        user = self._users.get(actor)
+        if user is None or not self._policy.allows(user, action):
+            raise VerificationRequired(action)
 
     def _view(self, actor: UserId, space_id: SpaceId) -> SpaceView:
         space = self._repo.get_space(space_id)
