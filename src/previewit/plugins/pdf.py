@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from html import escape
 from typing import Literal
 
@@ -16,6 +17,7 @@ class PdfArtifact:
     input_kind: Literal["text", "file"] = "file"
     accept = ".pdf,application/pdf"
     max_bytes = 10_000_000
+    annotation_kind = ""  # pinned comments on PDF pages come in a later release
 
     def ingest(self, upload: Upload) -> Artifact:
         data = upload.content or b""
@@ -33,6 +35,9 @@ class PdfArtifact:
             f'<object class="artifact-pdf" data="{url}" type="application/pdf">'
             f'<a href="{url}">Open the PDF</a></object>'
         )
+
+    def check_selector(self, artifact: Artifact, selector: Mapping[str, str]) -> dict[str, str]:
+        raise ArtifactError("Comments cannot be pinned to a PDF yet.")
 
 
 def _safe_name(name: str | None) -> str | None:

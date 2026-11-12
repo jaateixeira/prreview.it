@@ -18,12 +18,14 @@ from previewit.adapters.settings import Settings
 from previewit.adapters.web.auth_routes import build_auth_router
 from previewit.adapters.web.calls_routes import build_calls_router
 from previewit.adapters.web.kit import WebKit
+from previewit.adapters.web.reviews_routes import build_reviews_router
 from previewit.adapters.web.rounds_routes import build_rounds_router
 from previewit.adapters.web.rubrics_routes import build_rubrics_router
 from previewit.adapters.web.session import SESSION_COOKIE, SessionCodec
 from previewit.adapters.web.tenancy_routes import LoginRequired, build_tenancy_router
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService, InvalidShare
+from previewit.application.reviews import ReviewsService
 from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import (
@@ -50,6 +52,7 @@ def build_app(
     calls: CallsService,
     rubrics: RubricsService,
     rounds: RoundsService,
+    reviews: ReviewsService,
     providers: Mapping[Provider, ExternalProvider],
 ) -> FastAPI:
     app = FastAPI(title="Previewit", docs_url=None, redoc_url=None)
@@ -95,6 +98,7 @@ def build_app(
     app.include_router(build_calls_router(calls=calls, rubrics=rubrics, kit=kit))
     app.include_router(build_rubrics_router(rubrics=rubrics, kit=kit))
     app.include_router(build_rounds_router(rounds=rounds, calls=calls, kit=kit))
+    app.include_router(build_reviews_router(reviews=reviews, kit=kit))
 
     def error_page(request: Request, status: int, title: str, message: str):
         return kit.render(

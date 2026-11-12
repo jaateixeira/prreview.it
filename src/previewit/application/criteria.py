@@ -47,8 +47,18 @@ class CriterionType(Protocol):
         """One line for lists, for example `1 to 5`."""
         ...
 
-    def render_html(self, config: Mapping[str, Any], name: str) -> str:
-        """Safe HTML for the reviewer's input, named `name`. Escape every string."""
+    def render_html(self, config: Mapping[str, Any], name: str, value: str = "") -> str:
+        """Safe HTML for the reviewer's input, named `name`, showing `value` if given.
+        Escape every string."""
+        ...
+
+    def check_answer(self, config: Mapping[str, Any], raw: str) -> str:
+        """Validate a reviewer's answer (a string from a form). Return it normalised, or ""
+        for no answer. Raise CriterionError with a message the reviewer can act on."""
+        ...
+
+    def score(self, config: Mapping[str, Any], value: str) -> int | None:
+        """The numeric score of a normalised answer, or None when it is not a score."""
         ...
 
 

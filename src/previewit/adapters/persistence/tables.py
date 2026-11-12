@@ -320,6 +320,63 @@ review_tasks = Table(
     UniqueConstraint(
         "round_id", "reviewer_kind", "reviewer_id", "submission_id", name="uq_review_tasks_pair"
     ),
+    UniqueConstraint("id", "org_id", name="uq_review_tasks_id_org"),
     Index("ix_review_tasks_round_id", "round_id"),
     Index("ix_review_tasks_reviewer", "space_id", "reviewer_kind", "reviewer_id"),
+)
+
+
+# --- reviews, their edit trail and annotations ------------------------------------------------
+
+reviews = Table(
+    "reviews",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("space_id", String(64), nullable=False),
+    Column("round_id", String(64), nullable=False),
+    Column("task_id", String(64), nullable=False),
+    Column("answers", String(60000), nullable=False),  # JSON: criterion id -> answer
+    Column("version", Integer, nullable=False),
+    Column("submitted", Boolean, nullable=False),
+    Column("updated_by", String(64), nullable=True),
+    Column("updated_at", DateTime(timezone=True), nullable=True),
+    ForeignKeyConstraint(
+        ["task_id", "org_id"], ["review_tasks.id", "review_tasks.org_id"], ondelete="CASCADE"
+    ),
+    UniqueConstraint("id", "org_id", name="uq_reviews_id_org"),
+    UniqueConstraint("task_id", name="uq_reviews_task"),  # one review per task
+    Index("ix_reviews_round_id", "round_id"),
+)
+
+review_edits = Table(
+    "review_edits",
+    metadata,
+    Column("review_id", String(64), primary_key=True),
+    Column("version", Integer, primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("user_id", String(64), nullable=False),
+    Column("at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["review_id", "org_id"], ["reviews.id", "reviews.org_id"], ondelete="CASCADE"
+    ),
+)
+
+annotations = Table(
+    "annotations",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("space_id", String(64), nullable=False),
+    Column("review_id", String(64), nullable=False),
+    Column("revision_number", Integer, nullable=False),
+    Column("kind", String(32), nullable=False),
+    Column("selector", String(2000), nullable=False),  # JSON, normalised by the artifact type
+    Column("body", String(2000), nullable=False),
+    Column("created_by", String(64), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    ForeignKeyConstraint(
+        ["review_id", "org_id"], ["reviews.id", "reviews.org_id"], ondelete="CASCADE"
+    ),
+    Index("ix_annotations_review_id", "review_id"),
 )

@@ -1,0 +1,2 @@
+<span class="{{ 'error' if problem else 'saved' }}" role="status">{{ message }}</span>
+{% if version is not none %}<input type="hidden" id="version" name="version" value="{{ version }}" hx-swap-oob="true">{% endif %}

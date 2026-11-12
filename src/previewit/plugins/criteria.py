@@ -44,11 +44,27 @@ class NumericCriterion:
     def describe(self, config: Mapping[str, Any]) -> str:
         return f"{config['min']} to {config['max']}"
 
-    def render_html(self, config: Mapping[str, Any], name: str) -> str:
+    def render_html(self, config: Mapping[str, Any], name: str, value: str = "") -> str:
+        shown = f' value="{escape(value, quote=True)}"' if value else ""
         return (
             f'<input type="number" name="{escape(name, quote=True)}" '
-            f'min="{int(config["min"])}" max="{int(config["max"])}" step="1">'
+            f'min="{int(config["min"])}" max="{int(config["max"])}" step="1"{shown}>'
         )
+
+    def check_answer(self, config: Mapping[str, Any], raw: str) -> str:
+        raw = raw.strip()
+        if not raw:
+            return ""
+        try:
+            number = int(raw)
+        except ValueError:
+            raise CriterionError("Answer with a whole number.") from None
+        if not int(config["min"]) <= number <= int(config["max"]):
+            raise CriterionError(f"Answer between {config['min']} and {config['max']}.")
+        return str(number)
+
+    def score(self, config: Mapping[str, Any], value: str) -> int | None:
+        return int(value)
 
 
 class LevelsCriterion:
@@ -88,16 +104,28 @@ class LevelsCriterion:
     def describe(self, config: Mapping[str, Any]) -> str:
         return " / ".join(level["label"] for level in config["levels"])
 
-    def render_html(self, config: Mapping[str, Any], name: str) -> str:
+    def render_html(self, config: Mapping[str, Any], name: str, value: str = "") -> str:
         field = escape(name, quote=True)
         items = []
         for i, level in enumerate(config["levels"], start=1):
+            checked = " checked" if value == str(i) else ""
             items.append(
-                f'<label class="level"><input type="radio" name="{field}" value="{i}"> '
+                f'<label class="level"><input type="radio" name="{field}" value="{i}"{checked}> '
                 f"<strong>{escape(level['label'])}</strong> "
                 f"<small>{escape(level['descriptor'])}</small></label>"
             )
         return '<div class="levels">' + "".join(items) + "</div>"
+
+    def check_answer(self, config: Mapping[str, Any], raw: str) -> str:
+        raw = raw.strip()
+        if not raw:
+            return ""
+        if not raw.isdigit() or not 1 <= int(raw) <= len(config["levels"]):
+            raise CriterionError("Choose one of the levels.")
+        return str(int(raw))
+
+    def score(self, config: Mapping[str, Any], value: str) -> int | None:
+        return int(value)
 
 
 class YesNoCriterion:
@@ -117,12 +145,22 @@ class YesNoCriterion:
     def describe(self, config: Mapping[str, Any]) -> str:
         return "yes / no"
 
-    def render_html(self, config: Mapping[str, Any], name: str) -> str:
+    def render_html(self, config: Mapping[str, Any], name: str, value: str = "") -> str:
         field = escape(name, quote=True)
+        yes, no = (" checked" if value == "1" else ""), (" checked" if value == "0" else "")
         return (
-            f'<label><input type="radio" name="{field}" value="1"> Yes</label> '
-            f'<label><input type="radio" name="{field}" value="0"> No</label>'
+            f'<label><input type="radio" name="{field}" value="1"{yes}> Yes</label> '
+            f'<label><input type="radio" name="{field}" value="0"{no}> No</label>'
         )
+
+    def check_answer(self, config: Mapping[str, Any], raw: str) -> str:
+        raw = raw.strip()
+        if raw not in ("", "0", "1"):
+            raise CriterionError("Answer yes or no.")
+        return raw
+
+    def score(self, config: Mapping[str, Any], value: str) -> int | None:
+        return int(value)
 
 
 class TextCriterion:
@@ -149,8 +187,17 @@ class TextCriterion:
     def describe(self, config: Mapping[str, Any]) -> str:
         return f"up to {config['max_length']} characters"
 
-    def render_html(self, config: Mapping[str, Any], name: str) -> str:
+    def render_html(self, config: Mapping[str, Any], name: str, value: str = "") -> str:
         return (
             f'<textarea name="{escape(name, quote=True)}" rows="4" '
-            f'maxlength="{int(config["max_length"])}"></textarea>'
+            f'maxlength="{int(config["max_length"])}">{escape(value)}</textarea>'
         )
+
+    def check_answer(self, config: Mapping[str, Any], raw: str) -> str:
+        text = raw.replace("\r\n", "\n").strip()
+        if len(text) > int(config["max_length"]):
+            raise CriterionError(f"Keep the answer under {config['max_length']} characters.")
+        return text
+
+    def score(self, config: Mapping[str, Any], value: str) -> int | None:
+        return None

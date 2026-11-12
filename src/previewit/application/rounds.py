@@ -12,6 +12,7 @@ from previewit.application.ports import (
     CallRepository,
     DuplicateRound,
     DuplicateTask,
+    ReviewRepository,
     RoundRepository,
     TenancyRepository,
     UserRepository,
@@ -43,6 +44,7 @@ class TaskView:
     reviewer_label: str
     author_label: str  # organizers see everyone; M6 adds masking for the other viewers
     submission_title: str
+    state: str  # "not started", "draft" or "submitted"
 
 
 @dataclass(frozen=True)
@@ -80,6 +82,7 @@ class MyTask:
     round_number: int
     status: RoundStatus
     closes_at: datetime | None
+    state: str = "not started"
 
 
 @dataclass(frozen=True)
@@ -96,6 +99,7 @@ class RoundsService:
     def __init__(
         self,
         repo: RoundRepository,
+        reviews: ReviewRepository,
         calls_repo: CallRepository,
         tenancy: TenancyService,
         tenancy_repo: TenancyRepository,
@@ -105,6 +109,7 @@ class RoundsService:
         clock: Callable[[], datetime],
     ) -> None:
         self._repo = repo
+        self._reviews = reviews
         self._calls = calls_repo
         self._tenancy = tenancy
         self._tenancy_repo = tenancy_repo
@@ -189,6 +194,7 @@ class RoundsService:
 
     def delete_round(self, actor: UserId, round_id: RoundId) -> None:
         self._managed_round(actor, round_id)
+        self._refuse_if_reviewed(round_id, "Reviews have been written in this round.")
         self._repo.delete_round(round_id)
 
     def rounds(self, actor: UserId, call_id: CallId) -> list[RoundView]:
@@ -214,6 +220,9 @@ class RoundsService:
             raise InvalidRound("This round pairs reviewers by hand. Add tasks one by one.")
         if round_.status(self._now()) is RoundStatus.CLOSED:
             raise InvalidRound("This round has closed.")
+        self._refuse_if_reviewed(
+            round_.id, "Reviews have been written, so the pairs can no longer be replaced."
+        )
         submissions = self._repo_submissions(call)
         if not submissions:
             raise InvalidRound("There are no submissions to allocate yet.")
@@ -294,6 +303,8 @@ class RoundsService:
         if task is None:
             raise NotFound
         self._managed_round(actor, task.round_id)
+        if self._reviews.review_of_task(task.id) is not None:
+            raise InvalidRound("This reviewer has already started a review.")
         self._repo.delete_task(task_id)
 
     # -- the reviewer's side ----------------------------------------------
@@ -319,6 +330,10 @@ class RoundsService:
             status = round_.status(now)
             if status is RoundStatus.SCHEDULED:
                 continue
+            review = self._reviews.review_of_task(task.id)
+            state = (
+                "not started" if review is None else ("submitted" if review.submitted else "draft")
+            )
             result.append(
                 MyTask(
                     task,
@@ -328,6 +343,7 @@ class RoundsService:
                     round_.number,
                     status,
                     round_.closes_at,
+                    state,
                 )
             )
         far = datetime.max.replace(tzinfo=now.tzinfo)
@@ -349,6 +365,10 @@ class RoundsService:
         if round_ is None:
             raise NotFound
         return round_, self._managed_call(actor, round_.call_id)
+
+    def _refuse_if_reviewed(self, round_id: RoundId, message: str) -> None:
+        if self._reviews.reviews_in_round(round_id):
+            raise InvalidRound(message)
 
     def _repo_submissions(self, call: Call) -> list[Submission]:
         return self._calls.submissions_in_call(call.id)
@@ -387,12 +407,16 @@ class RoundsService:
         )
         names = {uid: u.display_name for uid, u in people.items()}
         group_names = {g.id: g.name for g in self._tenancy_repo.groups_in_space(call.space_id)}
+        started = {rv.task_id: rv for rv in self._reviews.reviews_in_round(round_.id)}
         views = [
             TaskView(
                 t,
                 self._label(t.reviewer, names, group_names),
                 self._label(submissions[t.submission_id].author, names, group_names),
                 submissions[t.submission_id].title,
+                "not started"
+                if t.id not in started
+                else ("submitted" if started[t.id].submitted else "draft"),
             )
             for t in tasks
             if t.submission_id in submissions

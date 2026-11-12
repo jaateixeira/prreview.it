@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack">
+  <p class="crumb"><a href="/spaces">Spaces</a> / <a href="/spaces/{{ ws.task.space_id }}/reviews">My reviews</a></p>
+  <h1>{{ ws.submission.title }}</h1>
+  <p><small>{{ ws.call.title }}, round {{ ws.round.number }}, revision {{ ws.revision.number }}.
+    {% if ws.shared %}Group review by {{ ws.reviewer_label }}: every member can edit it.{% endif %}
+    {% if ws.closed %}This round has closed; the review can no longer change.{% elif not ws.can_edit %}You are reading this review; only the reviewer can edit it.{% endif %}</small></p>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+
+  <div class="workspace">
+    <div class="workspace-artifact card" id="artifact" {% if ws.annotatable and ws.can_edit %}data-annotatable{% endif %}>
+      <h2>The work</h2>
+      <div class="artifact">{{ ws.artifact_html | safe }}</div>
+    </div>
+
+    <div class="workspace-side stack">
+      {% if ws.questions %}
+      <form method="post" action="/tasks/{{ ws.task.id }}" hx-boost="false" class="card form" id="review-form">
+        <h2>{{ ws.rubric_name }}</h2>
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <input type="hidden" id="version" name="version" value="{{ ws.version }}">
+        <div {% if ws.can_edit %}hx-post="/tasks/{{ ws.task.id }}/autosave" hx-include="closest form" hx-trigger="change, input delay:2s" hx-target="#save-status" hx-swap="innerHTML"{% endif %}>
+          {% for q in ws.questions %}
+          <fieldset class="criterion" {% if not ws.can_edit %}disabled{% endif %}>
+            <legend>{{ q.criterion.title }}{% if not q.criterion.required %} <small>(optional)</small>{% endif %}</legend>
+            {% if q.criterion.guidance %}<p class="guidance">{{ q.criterion.guidance }}</p>{% endif %}
+            {{ q.input_html | safe }}
+            {% if q.error %}<p class="error">{{ q.error }}</p>{% endif %}
+          </fieldset>
+          {% endfor %}
+        </div>
+        {% if ws.can_edit %}
+        <p><span id="save-status" aria-live="polite"><small>{% if ws.review %}{{ 'Submitted' if ws.review.submitted else 'Draft saved' }}.{% else %}Not saved yet.{% endif %}</small></span></p>
+        <button class="btn btn-secondary" type="submit" name="intent" value="draft">Save draft</button>
+        <button class="btn" type="submit" name="intent" value="submit">Submit review</button>
+        {% elif ws.review %}<p><small>{{ 'Submitted' if ws.review.submitted else 'Draft' }}.</small></p>{% endif %}
+      </form>
+      {% else %}
+      <p class="card">This {{ 'assignment' }} has no rubric. You can still comment on the work.</p>
+      {% endif %}
+
+      <section class="card stack" id="comments">
+        <h2>Comments on the work</h2>
+        {% if ws.annotatable %}
+        {% if ws.can_edit %}
+        <form method="post" action="/tasks/{{ ws.task.id }}/annotations" hx-boost="false" class="form" id="comment-form">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="quote" id="comment-quote">
+          <input type="hidden" name="start" id="comment-start">
+          <input type="hidden" name="end" id="comment-end">
+          <p id="comment-selected" class="quote"><small>Select some text on the left, then write your comment.</small></p>
+          <label class="field">Comment <textarea name="body" rows="3" maxlength="2000" required></textarea></label>
+          <button class="btn btn-small" type="submit" id="comment-submit" disabled>Add comment</button>
+        </form>
+        {% endif %}
+        <ul class="list">
+          {% for a in ws.annotations %}
+          <li>
+            <blockquote class="quote">{{ a.annotation.selector.quote }}</blockquote>
+            <p>{{ a.annotation.body }} <small>by {{ a.author_label }}</small></p>
+            {% if a.can_delete %}
+            <form method="post" action="/tasks/{{ ws.task.id }}/annotations/{{ a.annotation.id }}/delete" hx-boost="false" class="inline">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <button class="btn btn-small btn-secondary" type="submit" aria-label="Delete the comment on {{ a.annotation.selector.quote }}">Delete</button>
+            </form>
+            {% endif %}
+          </li>
+          {% else %}<li>No comments yet.</li>{% endfor %}
+        </ul>
+        {% else %}<p><small>Comments cannot be pinned to this kind of work yet.</small></p>{% endif %}
+      </section>
+
+      {% if ws.shared and ws.trail %}
+      <section class="card">
+        <h2>Who saved</h2>
+        <ol class="list">
+          {% for e in ws.trail %}<li><small>Version {{ e.version }}: {{ e.user_label }}, {{ e.at.strftime('%Y-%m-%d %H:%M') }} UTC</small></li>{% endfor %}
+        </ol>
+      </section>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

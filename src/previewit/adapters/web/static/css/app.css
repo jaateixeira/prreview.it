@@ -78,3 +78,15 @@ nav a:hover { text-decoration: underline; }
 .link { word-break: break-all; }
 select, .inline input[type=text] { font: inherit; padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-ink-soft); border-radius: var(--radius-s); }
+
+/* review workspace: the work beside the form on wide screens, stacked on narrow ones */
+.workspace { display: grid; gap: var(--space-3); max-width: none; }
+@media (min-width: 60rem) { .workspace { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; } }
+.workspace-artifact { overflow: auto; max-height: 85vh; }
+.artifact-text { white-space: pre-wrap; word-break: break-word; font: inherit; margin: 0; }
+.artifact-pdf { width: 100%; min-height: 70vh; }
+.quote { border-left: 3px solid var(--color-ink-soft); margin: 0; padding-left: var(--space-2);
+  color: var(--color-ink-soft); }
+.criterion { border: 0; padding: 0; margin: 0 0 var(--space-3); }
+.criterion legend { font-weight: 700; padding: 0; }
+.saved { color: var(--color-ok); }

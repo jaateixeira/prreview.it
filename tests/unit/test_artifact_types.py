@@ -70,3 +70,38 @@ def test_registry_lookup_listing_and_duplicates():
         reg.get("code")
     with pytest.raises(ValueError, match="twice"):
         reg.register(TextArtifact())
+
+
+# --- where a comment is pinned -----------------------------------------------------------------
+
+
+def test_text_selectors_must_match_the_content():
+    text = TextArtifact()
+    a = text.ingest(Upload(text="Hello brave world"))
+    ok = {"quote": "brave", "start": "6", "end": "11"}
+    assert text.check_selector(a, ok) == ok
+    for bad in (
+        {"quote": "brave", "start": "5", "end": "10"},  # not what is there
+        {"quote": "", "start": "6", "end": "6"},
+        {"quote": " ", "start": "5", "end": "6"},
+        {"quote": "brave", "start": "x", "end": "11"},
+        {"quote": "world!", "start": "12", "end": "18"},  # past the end
+        {},
+    ):
+        with pytest.raises(ArtifactError):
+            text.check_selector(a, bad)
+    assert text.annotation_kind == "text"
+
+
+def test_text_selectors_count_characters_not_bytes():
+    text = TextArtifact()
+    a = text.ingest(Upload(text="héllo 😀 wörld"))
+    assert text.check_selector(a, {"quote": "wörld", "start": "8", "end": "13"})["start"] == "8"
+
+
+def test_pdf_has_no_annotations_yet():
+    pdf = PdfArtifact()
+    a = pdf.ingest(Upload(content=b"%PDF-1.7\n%%EOF\n", filename="a.pdf"))
+    assert pdf.annotation_kind == ""
+    with pytest.raises(ArtifactError):
+        pdf.check_selector(a, {"quote": "a", "start": "0", "end": "1"})
