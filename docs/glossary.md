@@ -56,6 +56,7 @@ An **Auditor** (Deferred) will audit the review process: read-only over reviews,
 
 | Core term | Meaning | Status | Code | Notes |
 |---|---|---|---|---|
+| **Review design** | The set of choices that organizes review on a Call: who reviews, the Review unit, the number of Reviews per Submission, Allocation, Anonymity, how reviewers and authors interact, the instrument (Rubric, Annotations), the number of Rounds and the outcome. A Preset supplies the defaults; the Organizer adjusts them per Round. | Core (partial) | Not an entity. Today: `ReviewRound.per_submission`, `strategy_key` and `anonymity_key`, plus the Call's Rubric. | The simplest design is review by Share link: one author, one reviewer, comments only. Ten designs from different industries are in [research/review-designs.md](research/review-designs.md). Avoid *configuration*, *setup*, *scheme* and *format* for this. |
 | **Formative** / **Summative** | The *purpose* of a Round: help the author improve, or judge against a standard. | Deferred | (a future `purpose` on `ReviewRound`) | Education defaults to formative. Do not use as an anonymity or allocation setting. |
 | **Anonymity** | Who may see whose identity, per direction, with a reveal time. | Core | `AnonymityPolicy`, `RevealAt` | Say *anonymous*, never *blind*. The literature has moved to *anonymous*, and *blind* is a disability metaphor. |
 | **Single-anonymous** | One side is hidden. Two directions exist, so we name the hidden side: **reviewers hidden** (default) and **authors hidden**. | Core | preset keys `reviewers_hidden`, `authors_hidden` | Plain "single-anonymous" is ambiguous in a system where authors can also review. |
@@ -148,6 +149,7 @@ These are guidance for the words we write (help text, rubric templates, empty st
 | **feedback** | What an author receives. | What a reviewer writes is a Review. |
 | **item** | Nothing. | Avoid *review item* (finding or artifact?). |
 | **blind** | Nothing. | Say anonymous. |
+| **design** | A **Review design** (section 2): how review is organized. | The look of the product is *look and feel*. A formal review of an engineering design is an **Inspection**. |
 | **member** / **participant** | Member in core, *participant* in Education. | |
 
 ## 10. Adding or changing a word
