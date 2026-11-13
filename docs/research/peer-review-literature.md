@@ -80,7 +80,7 @@ flowchart LR
 | **Comparative judgement** | Reviewer picks the better of two; pairs build a scale | ComPAIR [Potter17]; adaptive pairing can inflate reliability [Verh22] | Blocked: a ReviewTask pairs one reviewer with one Submission (ADR 0014) |
 | **Group to group** | A Group writes one shared Review of another Group's Submission | Lower rating accuracy than individual work [Li16]; have members review individually where possible [Schunn] | Built: Party model, shared Review (M5) |
 | **Teammate evaluation** | Members rate each other's contribution; a factor turns a group mark into individual marks | CATME behavioural anchors in five areas [Ohland12]; WebPA; SPARKPLUS factors [Willey08] | Blocked: the target is a Submission, not a Party |
-| **Venue workflow** | Bids, conflicts of interest, expertise matching, discussion, author response, Decision | [Shah22] | Deferred (year 2) |
+| **Venue workflow** | Bids, conflicts of interest, expertise matching, discussion, author response, Decision | [Shah22] | Invitations and a public Call built (ADR 0017); the rest deferred (year 2) |
 | **Open and published** | Open identities, published reports, review without accept or reject | Seven traits of open review [Ross17]; eLife reviewed preprints [Eisen22] | `reveal_at` only |
 
 ## 5. Best practices
