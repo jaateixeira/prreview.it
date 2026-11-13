@@ -30,9 +30,10 @@ Key idea: a **Party** is either a User or a Group. That one abstraction makes al
 ```
 Organization (tenant) ──< Member(user, org_role)
 Organization ──< Space            # a course, a thesis seminar, a conference track, a journal issue, a team
-Space ──< Membership(user, role: owner|chair|reviewer|author|participant)
+Space ──< Membership(user, roles ⊆ {organizer, author, reviewer})   # auditor reserved (ADR 0017)
 Space ──< Group ──< GroupMembership(user)
-Space ──< Call                    # an assignment / call for papers / review request
+Space ──< Call                    # call for authors: public URL or URL with token
+ReviewRound ──< Invitation(email, token, tasks)       # call for reviewers: one personal link per reviewer
 Call ──1 Rubric ──< Criterion
 Call ──< Submission(author: Party, artifact)
 Submission ──< Revision(n, artifact_version)          # same work, improved between rounds
@@ -98,14 +99,37 @@ The core never says "student", "teacher" or "course". It uses **Space**, **Membe
 
 | Preset | Space is a… | Roles | Typical defaults |
 |---|---|---|---|
-| Education | Course | teacher, assistant, student | Peer-to-peer, groups, single-anonymous, 2–3 reviews each |
+| Education | Course | organizer = teacher, author, reviewer | Peer-to-peer, groups, single-anonymous, 2–3 reviews each |
 | Academic venue | Conference track / journal | chair, reviewer, author | Double-anonymous, COI checks, rebuttal, decisions |
 | Engineering team | Project / repo | lead, engineer | Open review, code/doc plugins, 1–2 reviewers |
 | Company / generic | Team / programme | admin, member | Configurable |
 
-Roles are data (named permission sets), not enum values in code. Labels come from the preset's translation catalogue, so an organization can rename anything ("Reviewer" → "Peer", "Call" → "Assignment").
+The three roles (organizer, author, reviewer) are fixed in the core (ADR 0017); a preset only renames them. Labels come from the preset's translation catalogue, so an organization can rename anything ("Reviewer" → "Peer", "Call" → "Assignment").
 
-### 2.6 Multi-tenancy and hosting
+### 2.6 Actors, calls and key processes (ADR 0017)
+
+Three actors, one fixed role each in a Space. A Member can hold several, and only a verified email is needed to take part, wherever the person works.
+
+| Actor | Does | Receives |
+|---|---|---|
+| **Organizer** | Calls for authors, calls for reviewers, builds rubrics, runs rounds, releases feedback | Everything |
+| **Author** | Submits items (artifacts) to a call, revises, reads and answers feedback | A call link |
+| **Reviewer** | Reviews the work of authors | An invitation link |
+
+An **Auditor** (audits the review process, read-only) is reserved for later.
+
+Calls travel as URL links with tokens:
+
+- **Call for authors.** The call's own URL. **Public:** the plain URL accepts submissions. **Protected:** only the URL with the call's token does. The organizer can revoke or replace the token. Neither is listed in a directory.
+- **Call for reviewers.** A personal **Invitation** per reviewer: its own token, bound to the invited email, carrying the submissions to review.
+
+The three key processes:
+
+1. **Organizing a call for authors.** Create a space, create the call (instructions, artifact type, deadline, access mode), publish, send the link, follow who has submitted.
+2. **Organizing peer review of the items.** Build a rubric, configure a round (reviews per submission, anonymity, allocation, window), pick the reviewers, allocate, send the call for reviewers, follow progress, release feedback, run further rounds.
+3. **Reviewing work by invitation.** Open the invitation, verify an email, see the allocated work, review it (comments and scores), submit.
+
+### 2.7 Multi-tenancy and hosting
 
 - `Organization` is the tenant. Every tenant-owned row carries `org_id`, enforced in the repository layer and tested (cross-tenant access tests are mandatory).
 - **Hosted mode is the product:** many organizations, free tier with quotas. **Self-hosted mode:** single organization, no billing; expert-only and unsupported (Debian Linux, PostgreSQL; ADR 0005).
@@ -199,7 +223,7 @@ The core never imports a plugin; it asks the registry. Plugin API is marked *uns
 
 ## 6. Roadmap
 
-**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Login (Google, Apple, HAKA, email + password) is implemented ahead of M1 (see ADR 0007). Organizations, spaces, roles (preset-defined), invite links and groups are implemented (ADR 0009); M1 is done (authorisation matrix and cross-tenant tests pass). M2 is done (calls, submissions, revisions, text and PDF plugins, review by link; ADR 0011). M3 is done (rubrics, criterion-type plugins, templates, attach to a call, preview; ADR 0013). M4 is done (review rounds, random, round-robin and manual allocation with property tests, "my reviews"; ADR 0014). M5 is done for text work (review form with autosave, group-shared editing with version check and edit trail, text comments, review state on the round page; ADR 0015); PDF page annotations are the one open M5 item. Next: M5b (PDF annotations), then M6.
+**Status:** M0 done (licence: AGPL-3.0-or-later) (walking skeleton, tooling, CI, ADRs, `Party` and `AnonymityPolicy` domain with unit tests, Playwright test). Login (Google, Apple, HAKA, email + password) is implemented ahead of M1 (see ADR 0007). Organizations, spaces, roles (preset-defined), invite links and groups are implemented (ADR 0009); M1 is done (authorisation matrix and cross-tenant tests pass). M2 is done (calls, submissions, revisions, text and PDF plugins, review by link; ADR 0011). M3 is done (rubrics, criterion-type plugins, templates, attach to a call, preview; ADR 0013). M4 is done (review rounds, random, round-robin and manual allocation with property tests, "my reviews"; ADR 0014). M5 is done for text work (review form with autosave, group-shared editing with version check and edit trail, text comments, review state on the round page; ADR 0015); PDF page annotations are the one open M5 item. ADR 0017 (three actors, public or protected calls for authors, reviewer invitations) is being delivered in four steps before M6: A documentation, B fixed roles, C call access, D reviewer invitations. Then M5b (PDF annotations) and M6.
 
 Every milestone: small PRs, tests first, CI green, ADR for each notable decision.
 
@@ -211,6 +235,7 @@ Every milestone: small PRs, tests first, CI green, ADR for each notable decision
 | **M3** | Rubrics | Criteria builder, scale types, reusable rubrics | Rubric renders in review form |
 | **M4** | Review rounds & allocation | Multi-round config, 1:n / n:n allocation (random, round-robin, manual), property tests | Allocation invariants hold for random inputs |
 | **M5** | Review workspace | Criteria form with autosave, text annotations, PDF annotations, group-shared review editing | Acceptance scenarios 1 and 2 pass |
+| **MA** | Actors and invitations (ADR 0017) | A: docs. B: fixed roles organizer/author/reviewer replace preset roles. C: call for authors public or token. D: reviewer invitations and review by invitation | Scenarios: organize a call for authors; organize peer review; review by invitation |
 | **M6** | Anonymity, release & feedback | Directional `AnonymityPolicy` + `IdentityMask`, release rules, "feedback received", author responses, later-round view, notifications, leak tests | Scenario 3 passes; leak tests pass |
 | **M7** | Polish & v0.1 | Performance pass, a11y audit, EN/FI strings, docs, seed demo data, organizer export (CSV) | Budgets met; **v0.1.0 tagged** |
 | **M8** | Hosted service | Multi-tenant hosted mode, `Entitlements` port with storage and share quotas, usage display and upgrade prompt, payment adapter, abuse controls (rate limits, upload checks, takedown), terms and privacy pages | A stranger signs up and runs a round unaided; quotas enforced and tested |
