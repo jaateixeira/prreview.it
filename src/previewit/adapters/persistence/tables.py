@@ -201,6 +201,7 @@ calls = Table(
     Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
     # Nullable: a call without a rubric. A rubric in use cannot be deleted (no ON DELETE).
     Column("rubric_id", String(64), nullable=True),
+    Column("access", String(16), nullable=False, default="protected", server_default="protected"),
     ForeignKeyConstraint(
         ["space_id", "org_id"], ["spaces.id", "spaces.org_id"], ondelete="CASCADE"
     ),

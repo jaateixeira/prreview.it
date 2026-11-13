@@ -127,7 +127,7 @@ classDiagram
     Decision "*" --> "1" Submission
 ```
 
-- **Call** is the call for authors. Its link is public (the plain URL) or protected (the URL with the token). An **Invitation** is one personal link of the call for reviewers: bound to an email, with its own token, carrying the review tasks of that reviewer. `Call.access`, `Call.token` and `Invitation` are planned (steps C and D of ADR 0017).
+- **Call** is the call for authors. Its link is public (the plain URL) or protected (the URL with the token). An **Invitation** is one personal link of the call for reviewers: bound to an email, with its own token, carrying the review tasks of that reviewer. `Call.access` exists (step C): a protected call's token is a share link. `Invitation` is planned (step D of ADR 0017).
 - **Artifact** content is type-specific (text, PDF) and comes from a plugin. Versions are immutable, so annotations are pinned to a revision and never drift.
 - **Annotation selector** is polymorphic: quote and offset for text, page and rectangles for PDF.
 - **Cardinality is allocation.** One `ReviewTask` links one reviewer Party to one Submission; 1:1, 1:n, n:1 and n:n are choices of the allocation strategy.

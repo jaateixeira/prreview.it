@@ -21,9 +21,10 @@ from previewit.application.calls import (
     ShareLimitReached,
 )
 from previewit.application.tenancy import Forbidden, NotFound, VerificationRequired
-from previewit.domain.calls import InvalidCall, ShareTarget
+from previewit.domain.calls import CallAccess, CallId, InvalidCall, ShareTarget
 from previewit.domain.identity import Email, User, UserId
 from previewit.domain.policy import Action, VerificationPolicy
+from previewit.domain.tenancy import Role
 from previewit.plugins.pdf import PdfArtifact
 from previewit.plugins.text import TextArtifact
 from tests.unit import test_tenancy_service as base
@@ -244,7 +245,9 @@ def test_leaving_the_group_ends_your_access_to_its_work(w: CWorld):
 # --- review by link ---------------------------------------------------------------
 
 
-def test_a_shared_call_can_be_viewed_but_not_submitted_to(w: CWorld):
+def test_a_call_link_admits_the_holder_as_an_author(w: CWorld):
+    """A protected call: the link carries the token (ADR 0017). Opening it makes you an author."""
+    assert w.call.access is CallAccess.PROTECTED  # protected unless the organizer opens it up
     _, token = w.c.create_share(TINA, ShareTarget.CALL, w.call.id)
     preview = w.c.preview_share(token)
     assert preview is not None and (preview.title, preview.shared_by) == ("Essay 1", "Tina")
@@ -252,11 +255,85 @@ def test_a_shared_call_can_be_viewed_but_not_submitted_to(w: CWorld):
         w.c.call_view(ZED, w.call.id)  # no access before opening the link
     item = w.c.accept_share(ZED, token)
     assert (item.target, item.target_id) == (ShareTarget.CALL, w.call.id)
+    assert w.t.space_view(ZED, w.s.id).roles == frozenset({Role.AUTHOR})
     view = w.c.call_view(ZED, w.call.id)
-    assert view.guest and not view.can_submit and view.everyone is None and view.mine == []
-    with pytest.raises(Forbidden):
-        w.essay(ZED)
+    assert not view.guest and view.can_submit and view.everyone is None
+    assert w.essay(ZED).author.user_id == ZED  # type: ignore[union-attr]
     assert [i.title for i in w.c.shared_with_me(ZED)] == ["Essay 1"]
+
+
+def test_revoking_a_call_link_stops_new_authors_but_keeps_those_who_joined(w: CWorld):
+    link, token = w.c.create_share(TINA, ShareTarget.CALL, w.call.id)
+    w.c.accept_share(ZED, token)
+    w.c.revoke_share(TINA, ShareTarget.CALL, w.call.id, link.id)
+    with pytest.raises(InvalidShare):
+        w.c.accept_share(BOB, token)
+    assert w.c.call_view(ZED, w.call.id).can_submit  # already in
+
+
+def test_a_link_to_a_draft_call_admits_nobody(w: CWorld):
+    draft = w.c.create_call(TINA, w.s.id, title="Draft", artifact_type="text")
+    _, token = w.c.create_share(TINA, ShareTarget.CALL, draft.id)
+    with pytest.raises(InvalidShare):
+        w.c.accept_share(ZED, token)
+    with pytest.raises(NotFound):
+        w.t.space_view(ZED, w.s.id)
+
+
+def test_following_a_call_link_never_demotes_a_member(w: CWorld):
+    _, token = w.c.create_share(TINA, ShareTarget.CALL, w.call.id)
+    w.c.accept_share(TINA, token)
+    assert w.t.space_view(TINA, w.s.id).roles == frozenset({Role.ORGANIZER})
+
+
+def test_a_public_call_needs_no_token(w: CWorld):
+    public = w.c.create_call(
+        TINA, w.s.id, title="Open", artifact_type="text", published=True, access=CallAccess.PUBLIC
+    )
+    preview = w.c.public_preview(public.id)
+    assert preview is not None and preview.title == "Open"
+    assert (preview.space_name, preview.organization_name) == ("Software Engineering", "School A")
+    item = w.c.open_public(ZED, public.id)
+    assert (item.target, item.target_id) == (ShareTarget.CALL, public.id)
+    assert w.t.space_view(ZED, w.s.id).roles == frozenset({Role.AUTHOR})
+    assert w.c.submit(ZED, public.id, title="Mine", upload=Upload(text="x")).title == "Mine"
+
+
+def test_a_protected_or_draft_call_cannot_be_opened_by_its_plain_address(w: CWorld):
+    draft = w.c.create_call(
+        TINA, w.s.id, title="Draft", artifact_type="text", access=CallAccess.PUBLIC
+    )
+    for call_id in (w.call.id, draft.id, CallId("no-such-call")):  # protected, draft, missing
+        assert w.c.public_preview(call_id) is None
+        with pytest.raises(NotFound):
+            w.c.open_public(ZED, call_id)
+    with pytest.raises(NotFound):
+        w.t.space_view(ZED, w.s.id)
+
+
+def test_the_organizer_chooses_and_changes_the_access_mode(w: CWorld):
+    assert (
+        w.c.update_call(
+            TINA,
+            w.call.id,
+            title="Essay 1",
+            description="",
+            closes_at=None,
+            published=True,
+            access=CallAccess.PUBLIC,
+        ).access
+        is CallAccess.PUBLIC
+    )
+    assert w.c.public_preview(w.call.id) is not None
+    w.c.update_call(
+        TINA, w.call.id, title="Essay 1", description="", closes_at=None, published=True
+    )  # access left as it was
+    assert w.c.public_preview(w.call.id) is not None
+    with pytest.raises(Forbidden):
+        w.c.update_call(
+            SAM, w.call.id, title="x", description="", closes_at=None, published=True,
+            access=CallAccess.PROTECTED,
+        )  # fmt: skip
 
 
 def test_a_shared_submission_shows_that_work_and_nothing_else(w: CWorld):
@@ -293,7 +370,7 @@ def test_expired_and_revoked_links_stop_working_but_grants_remain(w: CWorld):
     assert w.c.preview_share(token) is None
     with pytest.raises(InvalidShare):
         w.c.accept_share(BOB, token)
-    assert w.c.call_view(ZED, w.call.id).guest  # already opened: keeps access
+    assert w.c.call_view(ZED, w.call.id).can_submit  # already an author: keeps access
     _, token2 = w.c.create_share(TINA, ShareTarget.CALL, w.call.id, ttl=timedelta(hours=1))
     w.clock.now = T0 + timedelta(hours=1)
     assert w.c.preview_share(token2) is None

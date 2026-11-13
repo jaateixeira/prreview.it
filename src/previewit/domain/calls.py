@@ -60,6 +60,13 @@ class Artifact:
         return sha256(self.content).hexdigest()
 
 
+class CallAccess(StrEnum):
+    """Who may use a call's link to become an author (ADR 0017). Neither mode is listed anywhere."""
+
+    PUBLIC = "public"  # the plain call address admits anyone with a verified email
+    PROTECTED = "protected"  # only a link carrying a token admits; the organizer can revoke it
+
+
 @dataclass(frozen=True)
 class Call:
     id: CallId
@@ -73,6 +80,7 @@ class Call:
     published: bool
     created_by: UserId
     rubric_id: RubricId | None = None  # what reviewers answer; chosen by the call's managers
+    access: CallAccess = CallAccess.PROTECTED
 
     def accepting(self, now: datetime) -> bool:
         return self.published and (self.closes_at is None or now < self.closes_at)

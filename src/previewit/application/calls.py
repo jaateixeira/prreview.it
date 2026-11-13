@@ -19,6 +19,7 @@ from previewit.application.tenancy import Forbidden, NotFound, TenancyService, V
 from previewit.application.verification import hash_token
 from previewit.domain.calls import (
     Call,
+    CallAccess,
     CallId,
     Revision,
     RevisionInfo,
@@ -33,7 +34,7 @@ from previewit.domain.calls import (
 from previewit.domain.identity import UserId
 from previewit.domain.party import GroupParty, Party, UserParty
 from previewit.domain.policy import DEFAULT_POLICY, Action, VerificationPolicy
-from previewit.domain.tenancy import GroupId, Permission, Preset, Space, SpaceId
+from previewit.domain.tenancy import GroupId, Permission, Preset, Role, Space, SpaceId
 
 DEFAULT_SHARE_TTL = timedelta(days=30)
 
@@ -115,6 +116,18 @@ class SharePreview:
 
 
 @dataclass(frozen=True)
+class CallPreview:
+    """What a visitor sees before signing in, at a public call's address."""
+
+    title: str
+    description: str
+    space_name: str
+    organization_name: str
+    closes_at: datetime | None
+    accepting: bool
+
+
+@dataclass(frozen=True)
 class SharedItem:
     target: ShareTarget
     target_id: str
@@ -170,6 +183,7 @@ class CallsService:
         group_work: bool = False,
         closes_at: datetime | None = None,
         published: bool = False,
+        access: CallAccess = CallAccess.PROTECTED,
     ) -> Call:
         view = self._tenancy.space_view(actor, space_id)
         if Permission.CALLS_MANAGE not in view.permissions:
@@ -186,6 +200,7 @@ class CallsService:
             closes_at,
             published,
             actor,
+            access=access,
         )
         self._repo.add_call(call)
         return call
@@ -199,6 +214,7 @@ class CallsService:
         description: str,
         closes_at: datetime | None,
         published: bool,
+        access: CallAccess | None = None,
     ) -> Call:
         call = self._managed(actor, call_id)
         updated = replace(
@@ -207,6 +223,7 @@ class CallsService:
             description=clean_description(description),
             closes_at=closes_at,
             published=published,
+            access=access or call.access,
         )
         self._repo.update_call(updated)
         return updated
@@ -363,10 +380,37 @@ class CallsService:
         if found is None:
             raise InvalidShare
         link, title = found
+        if link.target is ShareTarget.CALL:  # a call link is a call for authors (ADR 0017)
+            call = self._repo.get_call(CallId(link.target_id))
+            if call is None:
+                raise InvalidShare
+            self._tenancy.admit(actor, call.space_id, {Role.AUTHOR})
         self._repo.add_share_grant(
             ShareGrant(link.org_id, link.space_id, actor, link.target, link.target_id)
         )
         return SharedItem(link.target, link.target_id, title)
+
+    def public_preview(self, call_id: CallId) -> CallPreview | None:
+        """What anyone may see at a public call's plain address; None for anything else."""
+        call = self._repo.get_call(call_id)
+        if call is None or not call.published or call.access is not CallAccess.PUBLIC:
+            return None
+        space = self._tenancy_repo.get_space(call.space_id)
+        org = self._tenancy_repo.get_org(call.org_id)
+        if space is None or org is None:
+            return None
+        return CallPreview(
+            call.title, call.description, space.name, org.name, call.closes_at,
+            call.accepting(self._now()),
+        )  # fmt: skip
+
+    def open_public(self, actor: UserId, call_id: CallId) -> SharedItem:
+        """Become an author through a public call's plain address."""
+        call = self._repo.get_call(call_id)
+        if self.public_preview(call_id) is None or call is None:
+            raise NotFound
+        self._tenancy.admit(actor, call.space_id, {Role.AUTHOR})
+        return SharedItem(ShareTarget.CALL, call.id, call.title)
 
     def shared_with_me(self, actor: UserId) -> list[SharedItem]:
         items: list[SharedItem] = []
@@ -495,4 +539,8 @@ class CallsService:
         if link is None or not link.usable(self._now()):
             return None
         title = self._target_title(link.target, link.target_id)
+        if link.target is ShareTarget.CALL:
+            call = self._repo.get_call(CallId(link.target_id))
+            if call is None or not call.published:
+                return None  # a draft call admits nobody
         return None if title is None else (link, title)

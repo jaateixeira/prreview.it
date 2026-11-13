@@ -66,3 +66,30 @@ def test_preset_roles_become_fixed_roles_and_back(tmp_path):
             r[0]: r[1] for r in conn.execute(text("SELECT user_id, role_key FROM space_members"))
         }
     assert back == {"t": "teacher", "a": "teacher", "s": "student", "x": "student"}
+
+
+def test_existing_calls_become_protected_and_the_column_can_be_dropped(tmp_path):
+    url = f"sqlite:///{tmp_path / 'c.db'}"
+    upgrade(url, "0009")
+    engine = create_engine(url)
+    day = "2026-01-01"
+    rows = [
+        ("users", "id, display_name, email_verified, created_at", "'u', 'u', 0, :d"),
+        ("organizations", "id, name, preset_key, created_at", "'o', 'O', 'education', :d"),
+        ("spaces", "id, org_id, name, created_at", "'s', 'o', 'S', :d"),
+        (
+            "calls",
+            "id, org_id, space_id, title, description, artifact_type, group_work, published, "
+            "created_by, created_at",
+            "'c', 'o', 's', 'T', '', 'text', 0, 1, 'u', :d",
+        ),
+    ]
+    with engine.begin() as conn:
+        for table, columns, values in rows:
+            conn.execute(text(f"INSERT INTO {table} ({columns}) VALUES ({values})"), {"d": day})
+    upgrade(url)
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT access FROM calls")).scalar_one() == "protected"
+    downgrade(url, "0009")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT title FROM calls")).scalar_one() == "T"

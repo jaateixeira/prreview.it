@@ -1,0 +1,30 @@
+{# The call for authors as a link. Needs call, csrf_token, shares, new_link, public_url. #}
+<h2>Send the call to authors</h2>
+{% if call.access.value == 'public' %}
+<p>Anyone with this address can join and submit. It is not listed anywhere.</p>
+{% if public_url %}<p><code class="link">{{ public_url }}</code></p>
+{% else %}<p><small>Publish the {{ word('call') }} to make the address work.</small></p>{% endif %}
+{% else %}
+<p>Only people with a link can join and submit. Create a link for each group you invite, and revoke it when you are done. A link is not listed anywhere.</p>
+{% endif %}
+{% if new_link %}
+<p class="notice" role="status">Copy this link now. It is shown only once:<br><code class="link">{{ new_link }}</code></p>
+{% endif %}
+<form method="post" action="/calls/{{ call.id }}/shares" hx-boost="false" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <button class="btn {{ 'btn-secondary' if call.access.value == 'public' }}" type="submit">Create link with a token</button>
+</form>
+{% if shares %}
+<ul class="list">
+  {% for s in shares %}
+  <li>Link expires {{ s.expires_at.strftime('%Y-%m-%d') }}{% if s.revoked %} (revoked){% endif %}
+    {% if not s.revoked %}
+    <form method="post" action="/calls/{{ call.id }}/shares/{{ s.id }}/revoke" hx-boost="false" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-small btn-secondary" type="submit">Revoke</button>
+    </form>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

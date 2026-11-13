@@ -24,6 +24,11 @@
     <label class="field"><span><input type="checkbox" name="group_work"> Groups submit together</span></label>
     <label class="field">Closes (UTC, optional) <input type="datetime-local" name="closes_at"></label>
     <label class="field"><span><input type="checkbox" name="published" checked> Visible to participants</span></label>
+    <fieldset class="field">
+      <legend>Who may submit</legend>
+      <label><input type="radio" name="access" value="protected" checked> Protected: only people with a link</label>
+      <label><input type="radio" name="access" value="public" > Public: anyone with the address</label>
+    </fieldset>
     <button class="btn" type="submit">Create {{ word('call') }}</button>
   </form>
   {% endif %}
