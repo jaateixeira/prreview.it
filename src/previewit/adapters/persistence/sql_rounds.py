@@ -5,12 +5,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from sqlalchemy import Connection, Engine, Row, and_, delete, insert, or_, select, update
+from sqlalchemy import Connection, Engine, Row, and_, delete, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 
-from previewit.adapters.persistence.tables import review_rounds, review_tasks
+from previewit.adapters.persistence.tables import (
+    invitation_submissions,
+    invitations,
+    review_rounds,
+    review_tasks,
+)
 from previewit.application.ports import DuplicateRound, DuplicateTask
 from previewit.domain.calls import CallId, SubmissionId
+from previewit.domain.identity import Email, UserId
+from previewit.domain.invitations import Invitation
 from previewit.domain.party import GroupParty, Party, UserParty
 from previewit.domain.rounds import ReviewRound, ReviewTask, RoundId, TaskId
 from previewit.domain.tenancy import OrgId, SpaceId
@@ -124,6 +131,13 @@ class SqlRoundRepository:
 
     def delete_round(self, round_id: RoundId) -> None:
         with self._engine.begin() as conn:
+            ids = select(invitations.c.id).where(invitations.c.round_id == round_id)
+            conn.execute(
+                delete(invitation_submissions).where(
+                    invitation_submissions.c.invitation_id.in_(ids)
+                )
+            )
+            conn.execute(delete(invitations).where(invitations.c.round_id == round_id))
             conn.execute(delete(review_tasks).where(review_tasks.c.round_id == round_id))
             conn.execute(delete(review_rounds).where(review_rounds.c.id == round_id))
 
@@ -181,3 +195,92 @@ class SqlRoundRepository:
                 select(review_tasks).where(review_tasks.c.space_id == space_id, match)
             ).all()
         return [_task(r) for r in rows]
+
+    # -- reviewer invitations ------------------------------------------------------------------
+
+    def add_invitation(self, invitation: Invitation) -> None:
+        with self._engine.begin() as conn:
+            conn.execute(
+                insert(invitations).values(
+                    id=invitation.id,
+                    org_id=invitation.org_id,
+                    space_id=invitation.space_id,
+                    round_id=invitation.round_id,
+                    email=invitation.email.value,
+                    created_by=invitation.created_by,
+                    expires_at=invitation.expires_at,
+                    revoked=invitation.revoked,
+                    accepted_by=invitation.accepted_by,
+                    sent_at=invitation.sent_at,
+                )
+            )
+            if invitation.submission_ids:
+                conn.execute(
+                    insert(invitation_submissions),
+                    [
+                        {
+                            "invitation_id": invitation.id,
+                            "submission_id": submission_id,
+                            "org_id": invitation.org_id,
+                            "position": position,
+                        }
+                        for position, submission_id in enumerate(invitation.submission_ids)
+                    ],
+                )
+
+    def get_invitation(self, invitation_id: str) -> Invitation | None:
+        with self._engine.connect() as conn:
+            row = conn.execute(select(invitations).where(invitations.c.id == invitation_id)).first()
+            return _invitation(conn, row) if row else None
+
+    def update_invitation(self, invitation: Invitation) -> None:
+        with self._engine.begin() as conn:
+            conn.execute(
+                update(invitations)
+                .where(invitations.c.id == invitation.id)
+                .values(
+                    revoked=invitation.revoked,
+                    accepted_by=invitation.accepted_by,
+                    sent_at=invitation.sent_at,
+                )
+            )
+
+    def invitations_of_round(self, round_id: RoundId) -> list[Invitation]:
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                select(invitations)
+                .where(invitations.c.round_id == round_id)
+                .order_by(invitations.c.expires_at, invitations.c.id)
+            ).all()
+            return [_invitation(conn, r) for r in rows]
+
+    def count_invitations(self, created_by: UserId) -> int:
+        with self._engine.connect() as conn:
+            return int(
+                conn.execute(
+                    select(func.count())
+                    .select_from(invitations)
+                    .where(invitations.c.created_by == created_by)
+                ).scalar_one()
+            )
+
+
+def _invitation(conn: Connection, row: Row) -> Invitation:
+    work = conn.execute(
+        select(invitation_submissions.c.submission_id)
+        .where(invitation_submissions.c.invitation_id == row.id)
+        .order_by(invitation_submissions.c.position)
+    ).scalars()
+    return Invitation(
+        row.id,
+        OrgId(row.org_id),
+        SpaceId(row.space_id),
+        RoundId(row.round_id),
+        Email(row.email),
+        tuple(SubmissionId(s) for s in work),
+        UserId(row.created_by),
+        _utc(row.expires_at),  # type: ignore[arg-type]
+        bool(row.revoked),
+        UserId(row.accepted_by) if row.accepted_by else None,
+        _utc(row.sent_at) if row.sent_at else None,  # type: ignore[arg-type]
+    )

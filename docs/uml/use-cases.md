@@ -53,8 +53,8 @@ flowchart LR
 | Create space, invite members, form groups | M1 | Education preset: space = course. Roles are organizer, author, reviewer (step B of ADR 0017) |
 | Create call with rubric | M2, M3 | Call = assignment in Education |
 | Send call for authors | M2, MA step C (done) | Public (plain URL) or protected (URL with token); revoke or replace the token |
-| Send call for reviewers | MA step D | One personal invitation per reviewer, bound to an email, carrying the work to review |
-| Open invitation, verify email | MA step D | A verified email is the only requirement |
+| Send call for reviewers | MA step D (done) | One personal invitation per reviewer, bound to an email, carrying the work to review; Previewit can email it with a cover letter |
+| Open invitation, verify email | MA step D (done) | A verified email is the only requirement |
 | Audit the review process | Deferred | Auditor: read-only over reviews, allocation and the edit trail |
 | Submit work or a revision | M2 | Text and PDF; individual or group |
 | Share a link for review | M2 | Minimal sign-up; counts toward the 100-share free limit |

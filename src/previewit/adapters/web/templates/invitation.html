@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth-card">
+  <h1>{{ preview.invited_by }} invited you to review</h1>
+  <p><strong>{{ preview.call_title }}</strong>, round {{ preview.round_number }}<br>
+     <small>{{ preview.space_name }}, {{ preview.organization_name }}</small></p>
+  <p>{% if preview.work_count %}{{ preview.work_count }} submission{{ '' if preview.work_count == 1 else 's' }} {{ 'is' if preview.work_count == 1 else 'are' }} waiting for you.{% else %}The organizer will allocate your reviews.{% endif %}</p>
+  <p><small>This invitation is for {{ preview.email_hint }}. Use that email address.</small></p>
+  {% if state == 'ready' %}
+  <form method="post" action="/i/{{ token }}" hx-boost="false" class="form">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn" type="submit">Start reviewing</button>
+  </form>
+  {% elif state == 'confirm_email' %}
+  <p class="notice" role="status">Confirm your email address first. We sent a link to {{ request.state.user.email.value }}. Then open this invitation again.</p>
+  <p><a href="/account">Your account</a></p>
+  {% elif state == 'other_email' %}
+  <p class="notice" role="status">You are signed in with another address. Log out and sign in with the address above to open this invitation.</p>
+  <p><a href="/account">Your account</a></p>
+  {% else %}
+  {% set back = ('/i/' ~ token) | urlencode %}
+  <p>Create an account or log in with that address. A name and a verified email are enough.</p>
+  <p><a class="btn" href="/signup?next={{ back }}">Create an account</a>
+     <a class="btn btn-secondary" href="/login?next={{ back }}">Log in</a></p>
+  {% endif %}
+</section>
+{% endblock %}
