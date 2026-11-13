@@ -49,3 +49,8 @@ class WebKit:
     def text(form: FormData, key: str) -> str:
         value = form.get(key)
         return value if isinstance(value, str) else ""
+
+    @staticmethod
+    def texts(form: FormData, key: str) -> list[str]:
+        """Every text value sent under one name (a group of checkboxes)."""
+        return [v for v in form.getlist(key) if isinstance(v, str)]

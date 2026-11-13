@@ -58,7 +58,7 @@ def w() -> RoundsWorld:
 
 
 def test_only_teachers_and_owners_manage_rounds(w: RoundsWorld):
-    for user in (SAM, AVA):  # student, assistant
+    for user in (SAM, AVA):  # author+reviewer, reviewer
         with pytest.raises(Forbidden):
             w.rr.create_round(user, w.call.id, per_submission=1, strategy_key="random")
         with pytest.raises(Forbidden):
@@ -141,6 +141,7 @@ def test_allocation_pairs_authors_with_each_other_never_with_themselves(w: Round
 
 
 def test_everybody_reviews_and_is_reviewed_k_times(w: RoundsWorld):
+    w.t.change_roles(ALICE, w.s.id, ALICE, ["organizer", "reviewer"])  # the owner reviews too
     w.work(SAM, SUE, PAT, ALICE)
     r = w.round(per_submission=2, strategy_key="random")
     w.rr.allocate(TINA, r.id, seed=7)
@@ -202,6 +203,7 @@ def test_allocation_needs_submissions_and_an_automatic_strategy_and_an_unclosed_
 
 def test_group_work_never_pairs_a_group_with_itself(w: RoundsWorld):
     call, group1 = w.group_call()
+    w.t.change_roles(ALICE, w.s.id, ALICE, ["organizer", "reviewer"])  # the owner reviews too
     group2 = w.t.create_group(TINA, w.s.id, "Group 2")
     for member in (PAT, ALICE):
         w.t.add_to_group(TINA, w.s.id, group2.id, member)
@@ -213,6 +215,30 @@ def test_group_work_never_pairs_a_group_with_itself(w: RoundsWorld):
         ("Group 1", "Two"),
         ("Group 2", "One"),
     }
+
+
+# --- who may review: the reviewer role ---------------------------------------------------------
+
+
+def test_only_reviewers_are_allocated_reviews_but_every_author_is_reviewed(w: RoundsWorld):
+    w.work(SAM, SUE, PAT)
+    w.t.change_roles(TINA, w.s.id, PAT, ["author"])  # Pat submits but does not review
+    r = w.round(per_submission=1)
+    w.rr.allocate(TINA, r.id, seed=1)
+    tasks = w.rr.round_view(TINA, r.id).tasks
+    assert {t.reviewer_label for t in tasks} <= {"Sam", "Sue"}
+    assert {t.submission_title for t in tasks} == {"sam essay", "sue essay", "pat essay"}
+
+
+def test_by_hand_only_reviewers_and_organizers_can_be_paired(w: RoundsWorld):
+    subs = w.work(SAM)
+    w.t.change_roles(TINA, w.s.id, SUE, ["author"])
+    r = w.round(strategy_key="manual")
+    labels = {o.label for o in w.rr.reviewer_options(TINA, r.id)}
+    assert "Sue" not in labels and {"Tina", "Pat"} <= labels
+    with pytest.raises(NotFound):
+        w.rr.add_task(TINA, r.id, subs[SAM].id, UserParty(SUE))
+    w.rr.add_task(TINA, r.id, subs[SAM].id, UserParty(PAT))
 
 
 # --- manual pairing ----------------------------------------------------------------------------

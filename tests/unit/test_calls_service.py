@@ -49,7 +49,7 @@ class CWorld(base.World):
             users.add_user(
                 User(uid, uid.title(), Email(f"{uid}@x.fi"), False, frozenset(), False), None
             )
-            _, token = self.t.create_invite(ALICE, self.s.id, role_key="student")
+            _, token = self.t.create_invite(ALICE, self.s.id, roles=["author", "reviewer"])
             self.t.accept_invite(uid, token)
         ids = count(1)
         kw = {"policy": policy} if policy else {}
@@ -91,7 +91,7 @@ def w() -> CWorld:
 
 
 def test_only_staff_with_the_permission_manage_calls(w: CWorld):
-    for user in (SAM, AVA):  # student, assistant
+    for user in (SAM, AVA):  # author+reviewer, reviewer
         with pytest.raises(Forbidden):
             w.c.create_call(user, w.s.id, title="X", artifact_type="text")
     with pytest.raises(NotFound):
@@ -179,7 +179,7 @@ def test_peers_cannot_see_each_others_work_but_staff_can(w: CWorld):
         w.c.submission_view(BOB, sub.id)  # another tenant
     with pytest.raises(NotFound):
         w.c.submission_view(ZED, sub.id)
-    for staff in (TINA, AVA, ALICE):
+    for staff in (TINA, ALICE):
         assert w.c.submission_view(staff, sub.id).author_name == "Sam"
     with pytest.raises(Forbidden):
         w.c.revise(TINA, sub.id, Upload(text="I edit your work"))  # staff cannot edit it
@@ -190,7 +190,7 @@ def test_call_view_lists_everything_only_for_staff(w: CWorld):
     w.essay(SUE, "U")
     assert [s.submission.title for s in w.c.call_view(SAM, w.call.id).mine] == ["S"]
     assert w.c.call_view(SAM, w.call.id).everyone is None
-    everyone = w.c.call_view(AVA, w.call.id).everyone
+    everyone = w.c.call_view(TINA, w.call.id).everyone
     assert everyone is not None and {s.author_name for s in everyone} == {"Sam", "Sue"}
 
 

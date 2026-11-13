@@ -96,7 +96,7 @@ space_members = Table(
     Column("space_id", String(64), primary_key=True),
     Column("user_id", String(64), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
     Column("org_id", String(64), nullable=False),
-    Column("role_key", String(64), nullable=False),
+    Column("roles", String(64), nullable=False),
     ForeignKeyConstraint(
         ["space_id", "org_id"], ["spaces.id", "spaces.org_id"], ondelete="CASCADE"
     ),
@@ -134,7 +134,7 @@ invites = Table(
     Column("id", String(64), primary_key=True),  # SHA-256 of the secret in the link
     Column("org_id", String(64), nullable=False),
     Column("space_id", String(64), nullable=False),
-    Column("role_key", String(64), nullable=False),
+    Column("roles", String(64), nullable=False),
     Column("created_by", String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("max_uses", Integer, nullable=True),

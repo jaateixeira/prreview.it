@@ -17,12 +17,14 @@ from previewit.application.tenancy import (
 )
 from previewit.domain.identity import User, UserId
 from previewit.domain.tenancy import (
+    DEFAULT_ROLES,
     PRESETS,
     GroupId,
     InvalidName,
     OrgId,
     OrgRole,
     Permission,
+    Role,
     SpaceId,
     get_preset,
 )
@@ -68,8 +70,9 @@ def build_tenancy_router(*, tenancy: TenancyService, kit: WebKit) -> APIRouter:
                 "page_title": view.space.name,
                 "view": view,
                 "word": view.preset.word,
-                "roles": view.preset.roles,
-                "role_labels": {r.key: r.label for r in view.preset.roles},
+                "role_options": [(r.value, view.preset.word(r.value).capitalize()) for r in Role],
+                "default_roles": {r.value for r in DEFAULT_ROLES},
+                "role_label": lambda roles: view.preset.role_label(roles).capitalize(),
                 "members": members,
                 "names": names,
                 "perms": perms,
@@ -197,6 +200,13 @@ def build_tenancy_router(*, tenancy: TenancyService, kit: WebKit) -> APIRouter:
         if form is None:
             return kit.forbidden()
         user = current_user(request)
+        roles = kit.texts(form, "roles")
+        if not roles:
+            return await run(
+                lambda: space_page(
+                    request, user, space_id, error="Choose at least one role.", status=400
+                )
+            )
         try:
             days = min(max(int(kit.text(form, "days") or "7"), 1), 90)
             raw_uses = kit.text(form, "max_uses").strip()
@@ -215,7 +225,7 @@ def build_tenancy_router(*, tenancy: TenancyService, kit: WebKit) -> APIRouter:
             lambda: tenancy.create_invite(
                 user.id,
                 SpaceId(space_id),
-                role_key=kit.text(form, "role") or None,
+                roles=roles,
                 ttl=timedelta(days=days),
                 max_uses=max_uses,
             )
@@ -231,11 +241,13 @@ def build_tenancy_router(*, tenancy: TenancyService, kit: WebKit) -> APIRouter:
 
     # members
     @router.post("/spaces/{space_id}/members/{user_id}/role")
-    async def change_role(request: Request, space_id: str, user_id: str) -> Response:
+    async def change_roles(request: Request, space_id: str, user_id: str) -> Response:
         return await form_action(
             request,
             space_id,
-            lambda uid, sid, f: tenancy.change_role(uid, sid, UserId(user_id), kit.text(f, "role")),
+            lambda uid, sid, f: tenancy.change_roles(
+                uid, sid, UserId(user_id), kit.texts(f, "roles")
+            ),
         )
 
     @router.post("/spaces/{space_id}/members/{user_id}/remove")

@@ -35,7 +35,7 @@ from previewit.domain.rounds import (
     clean_per_submission,
     validate_window,
 )
-from previewit.domain.tenancy import GroupId, Permission, SpaceId
+from previewit.domain.tenancy import GroupId, Permission, Role, SpaceId
 
 
 @dataclass(frozen=True)
@@ -83,6 +83,9 @@ class MyTask:
     status: RoundStatus
     closes_at: datetime | None
     state: str = "not started"
+
+
+PAIRABLE_ROLES = frozenset({Role.REVIEWER, Role.ORGANIZER})  # by hand, an organizer may review
 
 
 @dataclass(frozen=True)
@@ -227,7 +230,12 @@ class RoundsService:
         if not submissions:
             raise InvalidRound("There are no submissions to allocate yet.")
         groups = self._groups(call.space_id)
-        authors = {party_key(s.author): self._slot(s.author, groups) for s in submissions}
+        reviewers = self._reviewer_ids(call.space_id)
+        authors = {
+            party_key(s.author): slot
+            for s in submissions
+            if (slot := self._slot(s.author, groups)).people <= reviewers  # only reviewers review
+        }
         problem = Problem(
             reviewers=list(authors.values()),
             submissions=[Slot(s.id, self._slot(s.author, groups).people) for s in submissions],
@@ -256,11 +264,23 @@ class RoundsService:
         ]
         return AllocationReport(len(tasks), gaps)
 
+    def _reviewer_ids(self, space_id: SpaceId) -> frozenset[str]:
+        """People who hold the reviewer role: the pool automatic allocation draws from."""
+        return frozenset(
+            str(m.user_id)
+            for m in self._tenancy_repo.space_members(space_id)
+            if Role.REVIEWER in m.roles
+        )
+
     def reviewer_options(self, actor: UserId, round_id: RoundId) -> list[ReviewerOption]:
         """Everyone who could be added by hand: the space's people and groups."""
         _, call = self._managed_round(actor, round_id)
         members = self._tenancy.members(actor, call.space_id)
-        options = [ReviewerOption(UserParty(m.user_id), m.display_name) for m in members]
+        options = [
+            ReviewerOption(UserParty(m.user_id), m.display_name)
+            for m in members
+            if m.roles & PAIRABLE_ROLES
+        ]
         options += [
             ReviewerOption(GroupParty(g.id), f"{g.name} (group)")
             for g in self._tenancy_repo.groups_in_space(call.space_id)
@@ -276,7 +296,8 @@ class RoundsService:
             raise NotFound
         groups = self._groups(call.space_id)
         if isinstance(reviewer, UserParty):
-            if self._tenancy_repo.space_member(call.space_id, UserId(reviewer.user_id)) is None:
+            member = self._tenancy_repo.space_member(call.space_id, UserId(reviewer.user_id))
+            if member is None or not member.roles & PAIRABLE_ROLES:
                 raise NotFound
         elif GroupId(reviewer.group_id) not in groups:
             raise NotFound

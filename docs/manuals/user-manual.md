@@ -55,7 +55,7 @@ Use the hosted site. Sign-up asks for the minimum. Students and reviewers never 
 
 ## 5. Organizer
 
-1. **Create a space** and invite members by link. Form groups if groups submit or review. (M1)
+1. **Create a space** and invite members by link. Tick the roles the link gives: organizer, author, reviewer (a participant is usually author and reviewer). Change a member's roles later on the space page. Form groups if groups submit or review. (M1)
 2. **Call for authors:** title, instructions, accepted type (text or PDF), deadline, and who may submit: public or protected. Publish, copy the link and send it. For a protected call you can revoke the link and send a new one. (M2, access modes in MA)
 3. **Build a rubric:** criteria with a scale (numeric, levels with descriptions, yes/no, free text) and optional weights. Rubrics are reusable. (M3)
 4. **Configure the round:** opening and closing time, anonymity, reviews per submission, allocation (random, round-robin or manual). (M4)

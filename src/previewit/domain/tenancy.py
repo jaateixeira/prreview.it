@@ -1,10 +1,12 @@
 """Organizations (tenants), spaces, groups, invites and who may do what.
 
-Roles are data supplied by presets; the core never names a concrete role.
+Three fixed roles per space: organizer, author, reviewer (ADR 0017). A member holds a set of
+them. Presets only rename them; they do not define roles.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -48,30 +50,33 @@ class OrgRole(StrEnum):
     MEMBER = "member"
 
 
-@dataclass(frozen=True)
-class RoleDef:
-    key: str
-    label: str
-    permissions: frozenset[Permission]
+class InvalidRole(ValueError):
+    pass
+
+
+class Role(StrEnum):
+    ORGANIZER = "organizer"  # calls for authors and reviewers, runs rounds, reads everything
+    AUTHOR = "author"  # submits work to calls
+    REVIEWER = "reviewer"  # reviews the work of authors, on invitation or allocation
+
+
+Roles = frozenset[Role]
 
 
 @dataclass(frozen=True)
 class Preset:
-    """Vocabulary and role set for a kind of organization."""
+    """Vocabulary for a kind of organization. It renames concepts and roles; it adds none."""
 
     key: str
     label: str
-    roles: tuple[RoleDef, ...]
-    creator_role: str  # role of whoever creates a space
-    default_role: str  # role given to people who join through a link
     vocabulary: dict[str, str] = field(default_factory=dict[str, str], compare=False)
-
-    def role(self, key: str) -> RoleDef | None:
-        return next((r for r in self.roles if r.key == key), None)
 
     def word(self, concept: str) -> str:
         """The preset's word for a core concept; the concept's own name if it has none."""
         return self.vocabulary.get(concept, concept)
+
+    def role_label(self, roles: Iterable[Role]) -> str:
+        return ", ".join(self.word(r.value) for r in sorted(roles))
 
 
 P = Permission
@@ -79,25 +84,15 @@ P = Permission
 EDUCATION = Preset(
     key="education",
     label="Education",
-    roles=(
-        RoleDef("teacher", "Teacher", frozenset(Permission)),
-        RoleDef(
-            "assistant",
-            "Teaching assistant",
-            frozenset(
-                {P.SPACE_VIEW, P.MEMBERS_INVITE, P.GROUPS_MANAGE, P.SUBMIT, P.SUBMISSIONS_VIEW_ALL}
-            ),
-        ),
-        RoleDef("student", "Student", frozenset({P.SPACE_VIEW, P.SUBMIT})),
-    ),
-    creator_role="teacher",
-    default_role="student",
     vocabulary={
         "organization": "school",
         "space": "course",
         "spaces": "courses",
         "member": "participant",
         "members": "participants",
+        "organizer": "teacher",
+        "author": "author",
+        "reviewer": "reviewer",
         "group": "group",
         "groups": "groups",
         "call": "assignment",
@@ -114,22 +109,53 @@ def get_preset(key: str) -> Preset | None:
     return PRESETS.get(key)
 
 
-def permissions(
-    preset: Preset, org_role: OrgRole | None, space_role: str | None
-) -> frozenset[Permission]:
-    """What someone may do in a space, from their organization role and space role."""
+ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
+    Role.ORGANIZER: frozenset(Permission),
+    Role.AUTHOR: frozenset({P.SPACE_VIEW, P.SUBMIT}),
+    Role.REVIEWER: frozenset({P.SPACE_VIEW}),
+}
+
+CREATOR_ROLES: Roles = frozenset({Role.ORGANIZER})  # whoever creates a space
+DEFAULT_ROLES: Roles = frozenset({Role.AUTHOR, Role.REVIEWER})  # people who join through a link
+
+
+def role_permissions(roles: Iterable[Role]) -> frozenset[Permission]:
+    granted: set[Permission] = set()
+    for role in roles:
+        granted |= ROLE_PERMISSIONS[role]
+    return frozenset(granted)
+
+
+def format_roles(roles: Iterable[Role]) -> str:
+    """The stored form: sorted, comma separated."""
+    return ",".join(sorted(r.value for r in roles))
+
+
+def coerce_roles(values: Iterable[str]) -> Roles:
+    """Roles from their names. At least one, and every name must be a role."""
+    try:
+        roles = frozenset(Role(v) for v in values)
+    except ValueError:
+        raise InvalidRole("unknown role") from None
+    if not roles:
+        raise InvalidRole("a member holds at least one role")
+    return roles
+
+
+def parse_roles(value: str) -> Roles:
+    return coerce_roles(v for v in value.split(",") if v.strip())
+
+
+def permissions(org_role: OrgRole | None, roles: Roles) -> frozenset[Permission]:
+    """What someone may do in a space, from their organization role and space roles."""
     if org_role is OrgRole.OWNER:
         return frozenset(Permission)
-    if space_role is None:
-        return frozenset()
-    role = preset.role(space_role)
-    return role.permissions if role else frozenset()
+    return role_permissions(roles)
 
 
-def can_grant(preset: Preset, actor: frozenset[Permission], role_key: str) -> bool:
+def can_grant(actor: frozenset[Permission], roles: Roles) -> bool:
     """No privilege escalation: you may only hand out roles no stronger than your own."""
-    role = preset.role(role_key)
-    return role is not None and role.permissions <= actor
+    return bool(roles) and role_permissions(roles) <= actor
 
 
 @dataclass(frozen=True)
@@ -151,7 +177,7 @@ class SpaceMember:
     org_id: OrgId
     space_id: SpaceId
     user_id: UserId
-    role_key: str
+    roles: Roles
 
 
 @dataclass(frozen=True)
@@ -170,7 +196,7 @@ class Invite:
     id: str
     org_id: OrgId
     space_id: SpaceId
-    role_key: str
+    roles: Roles
     created_by: UserId
     expires_at: datetime
     max_uses: int | None
