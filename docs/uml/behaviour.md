@@ -37,7 +37,12 @@ sequenceDiagram
     P->>P: Allocation: no conflicts, balanced load
     O->>P: Send call for reviewers
     P-->>O: One invitation link per reviewer
-    O-)R: Sends each reviewer their link
+    alt Previewit sends it
+        O->>P: Yes, with a cover letter
+        P-)R: Email: cover letter and link
+    else Organizer sends it
+        O-)R: Sends the reviewer their link
+    end
     Note over P: Round open: see process 3
     O->>P: Follow progress
     O->>P: Release feedback, open the next round

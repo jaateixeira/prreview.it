@@ -132,6 +132,8 @@ def create_app() -> FastAPI:
         UnlimitedEntitlements(),
         lambda: uuid.uuid4().hex,
         lambda: datetime.now(UTC),
+        mailer=mailer,
+        base_url=settings.base_url,
         policy=settings.verification_policy,
     )
     registry = ArtifactRegistry(artifact_types)

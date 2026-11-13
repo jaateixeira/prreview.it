@@ -1,4 +1,4 @@
-"""Migrations 0009-0011: fixed roles, call access and reviewer invitations (ADR 0017)."""
+"""Migrations 0009-0012: fixed roles, call access, reviewer invitations (ADR 0017)."""
 
 from sqlalchemy import create_engine, inspect, text
 
@@ -107,3 +107,17 @@ def test_invitation_tables_are_added_and_removed(tmp_path):
     assert not {"invitations", "invitation_submissions"} & set(
         inspect(create_engine(url)).get_table_names()
     )
+
+
+def test_invitations_remember_when_they_were_mailed(tmp_path):
+    url = f"sqlite:///{tmp_path / 's.db'}"
+    upgrade(url, "0011")
+    assert "sent_at" not in {
+        c["name"] for c in inspect(create_engine(url)).get_columns("invitations")
+    }
+    upgrade(url)
+    assert "sent_at" in {c["name"] for c in inspect(create_engine(url)).get_columns("invitations")}
+    downgrade(url, "0011")
+    assert "sent_at" not in {
+        c["name"] for c in inspect(create_engine(url)).get_columns("invitations")
+    }

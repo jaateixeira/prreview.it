@@ -18,6 +18,7 @@ from previewit.application.ports import (
     CallRepository,
     DuplicateTask,
     Entitlements,
+    Mailer,
     RoundRepository,
     TenancyRepository,
     UserRepository,
@@ -29,6 +30,7 @@ from previewit.domain.allocation import conflicts
 from previewit.domain.calls import Call, SubmissionId
 from previewit.domain.identity import UserId
 from previewit.domain.invitations import (
+    MAX_COVER_LETTER,
     MAX_SUBMISSIONS_PER_INVITATION,
     InvalidInvitation,
     Invitation,
@@ -63,6 +65,7 @@ class InvitationView:
     work: list[str]  # titles of the submissions the reviewer is asked to review
     expires_at: datetime
     accepted_by: str | None
+    sent: bool  # Previewit mailed it
 
 
 @dataclass(frozen=True)
@@ -95,6 +98,8 @@ class InvitationsService:
         new_id: Callable[[], str],
         now: Callable[[], datetime],
         *,
+        mailer: Mailer,
+        base_url: str,
         policy: VerificationPolicy = DEFAULT_POLICY,
     ) -> None:
         self._repo = repo
@@ -105,6 +110,8 @@ class InvitationsService:
         self._entitlements = entitlements
         self._new_id = new_id
         self._now = now
+        self._mailer = mailer
+        self._base_url = base_url.rstrip("/")
         self._policy = policy
 
     # -- the organizer's side ---------------------------------------------------------------
@@ -178,9 +185,50 @@ class InvitationsService:
                     titles,
                     inv.expires_at,
                     who.display_name if who else None,
+                    inv.sent_at is not None,
                 )
             )
         return views
+
+    def send(self, actor: UserId, round_id: RoundId, token: str, cover_letter: str) -> str:
+        """Mail the invitation to its address, once, with the organizer's cover letter.
+        Returns the address it went to.
+
+        The mail goes out in the organizer's name, so their own email must be verified. The
+        token is known only to whoever just created the invitation; Previewit keeps its hash."""
+        round_, call = self._managed(actor, round_id)
+        sender = self._users.get(actor)
+        if sender is None or not sender.email_verified:
+            raise VerificationRequired(Action.INVITE)
+        found = self._live(token)
+        if found is None or found[0].round_id != round_id:
+            raise InvalidInvitationLink
+        inv = found[0]
+        if inv.sent_at is not None:
+            raise InvalidInvitation("Previewit has already sent this invitation.")
+        if inv.accepted_by is not None:
+            raise InvalidInvitation("This invitation has already been opened.")
+        letter = cover_letter.strip()
+        if len(letter) > MAX_COVER_LETTER:
+            raise InvalidInvitation(
+                f"The cover letter can have up to {MAX_COVER_LETTER} characters."
+            )
+        space = self._tenancy_repo.get_space(inv.space_id)
+        who = sender.display_name
+        message = f"{who} writes:\n\n{letter}\n\n" if letter else ""
+        self._mailer.send(
+            inv.email.value,
+            f"Invitation to review: {call.title}",
+            f'Hello,\n\n{who} invited you to review in "{space.name if space else ""}": '
+            f"{call.title}, round {round_.number}.\n\n{message}"
+            f"Open your invitation:\n{self._base_url}/i/{token}\n\n"
+            f"The link is personal and works for {inv.email.value} only: sign up or log in with "
+            f"this address and confirm it. It expires on {inv.expires_at:%Y-%m-%d}. "
+            f"You received this because {who} asked Previewit to send it. If you do not know "
+            "them, ignore this mail.\n",
+        )
+        self._repo.update_invitation(replace(inv, sent_at=self._now()))
+        return inv.email.value
 
     def revoke(self, actor: UserId, round_id: RoundId, invitation_id: str) -> None:
         self._managed(actor, round_id)

@@ -26,6 +26,7 @@ Status column:
 |---|---|---|---|---|---|
 | **Organization** | The tenant. Owns every row (`org_id`), the preset and billing. | Core | `Organization`, `OrgId` | school | tenant (in UI), account |
 | **Space** | A place where a set of Members reviews each other's work. | Core | `Space`, `SpaceId` | course | project, class, workspace |
+| **Review space** | The full name of a Space, not another concept. Use *Space* in code, tables and short docs; use *Review space* in prose where "space" alone is unclear, such as emails and the manual. Its Members are the people with a role in it: the organizer who created it, authors admitted through a call for authors and reviewers admitted through an Invitation. | Core (long form) | `Space` | course | project, class, workspace |
 | **Member** | A user with one or more roles in a Space. A verified email is enough to be one. | Core | `SpaceMember` | participant | participant (outside Education), user (when a role matters) |
 | **Party** | Someone or something that can author a Submission or write a Review: a user or a group. | Core | `Party`, `UserParty`, `GroupParty` | (none) | actor, principal |
 | **Group** | A named set of Members in a Space that acts as one Party. | Core | `Group`, `GroupId` | (none) | team (reserved for the engineering preset's Space) |
@@ -33,7 +34,7 @@ Status column:
 | **Organizer** | The role that calls for authors and calls for reviewers, builds rubrics, runs Rounds and reads everything. The Organization owner is organizer in every Space. | Core | `Role.ORGANIZER`, `Permission` | teacher | moderator, facilitator, chair (see section 5) |
 | **Call** (for authors) | The Organizer's invitation to submit work, with a deadline, an artifact type and optionally a Rubric. Sent as a link. Access is **public** (plain URL) or **protected** (URL with a token). *Call* alone always means this one. | Core (access modes done) | `Call`, `CallId` | assignment | task, activity |
 | **Call for reviewers** | The Organizer's invitation to review the submitted work of a Round: a set of Invitations. | Core | (a set of `Invitation`) | (none) | review assignment |
-| **Invitation** | One personal link with a token for one invited reviewer (an email address), bound to that address, carrying the Submissions to review. | Core | `Invitation` | (none) | invite (an invite adds a Member) |
+| **Invitation** | One personal link with a token for one invited reviewer (an email address), bound to that address, carrying the Submissions to review. Previewit can email it with the organizer's cover letter, or the organizer sends the link. | Core | `Invitation` | (none) | invite (an invite adds a Member) |
 | **Token** | The random secret in a link. At least 128 bits, one purpose, revocable. | Core (share links), Planned (C, D) | | | key, password |
 | **Submission** | What a Party hands in to a Call. It is the **review unit**: one Submission is reviewed as a whole. | Core | `Submission` | (none) | work product, review object, review item, deliverable |
 | **Revision** | A numbered, immutable version of a Submission. Reviews and Annotations are pinned to one Revision. | Core | `Revision` | (none) | version (ambiguous with `version` on a Review) |

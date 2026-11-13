@@ -211,6 +211,7 @@ class SqlRoundRepository:
                     expires_at=invitation.expires_at,
                     revoked=invitation.revoked,
                     accepted_by=invitation.accepted_by,
+                    sent_at=invitation.sent_at,
                 )
             )
             if invitation.submission_ids:
@@ -237,7 +238,11 @@ class SqlRoundRepository:
             conn.execute(
                 update(invitations)
                 .where(invitations.c.id == invitation.id)
-                .values(revoked=invitation.revoked, accepted_by=invitation.accepted_by)
+                .values(
+                    revoked=invitation.revoked,
+                    accepted_by=invitation.accepted_by,
+                    sent_at=invitation.sent_at,
+                )
             )
 
     def invitations_of_round(self, round_id: RoundId) -> list[Invitation]:
@@ -277,4 +282,5 @@ def _invitation(conn: Connection, row: Row) -> Invitation:
         _utc(row.expires_at),  # type: ignore[arg-type]
         bool(row.revoked),
         UserId(row.accepted_by) if row.accepted_by else None,
+        _utc(row.sent_at) if row.sent_at else None,  # type: ignore[arg-type]
     )

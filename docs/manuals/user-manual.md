@@ -60,7 +60,7 @@ Use the hosted site. Sign-up asks for the minimum. Students and reviewers never 
 3. **Build a rubric:** criteria with a scale (numeric, levels with descriptions, yes/no, free text) and optional weights. Rubrics are reusable. (M3)
 4. **Configure the round:** opening and closing time, anonymity, reviews per submission, allocation (random, round-robin or manual). (M4)
 5. **Allocate.** Previewit never allocates a party its own work or its own group's work, and balances the load. Adjust by hand if needed. (M4)
-6. **Call for reviewers:** on the round page, choose **Invite a reviewer by email**, tick the work they should review (optional) and create the invitation. Copy the link and send it yourself: it is shown once. Reviewers may be members of the space or outsiders. You can revoke a link until it is used. Each invitation counts toward your sharing limit. (MA)
+6. **Call for reviewers:** on the round page, choose **Invite a reviewer by email**, tick the work they should review (optional) and create the invitation. Previewit then shows the personal link (shown once) and asks whether it should email it. If you say yes, write a short cover letter that goes above the link; the mail is sent in your name, so your own email must be verified, and each invitation is mailed once. Or copy the link and send it yourself. Reviewers may be members of the space or outsiders. You can revoke a link until it is used. Each invitation counts toward your sharing limit. (MA)
 7. **Follow progress:** who has submitted, who has reviewed. (M5)
 8. **Release feedback** by hand or by rule (for example when the round closes). (M6)
 9. **Further rounds:** authors revise; the next round targets the new revision, and reviewers see the earlier reviews and the author's response. (M6)

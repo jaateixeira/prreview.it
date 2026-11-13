@@ -338,6 +338,7 @@ invitations = Table(
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("revoked", Boolean, nullable=False, default=False),
     Column("accepted_by", String(64), ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+    Column("sent_at", DateTime(timezone=True), nullable=True),
     ForeignKeyConstraint(
         ["round_id", "org_id"], ["review_rounds.id", "review_rounds.org_id"], ondelete="CASCADE"
     ),

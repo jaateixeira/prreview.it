@@ -83,7 +83,10 @@ class InMemoryRoundRepository:
         current = self._invitations.get(invitation.id)
         if current is not None:  # only these two ever change
             self._invitations[invitation.id] = replace(
-                current, revoked=invitation.revoked, accepted_by=invitation.accepted_by
+                current,
+                revoked=invitation.revoked,
+                accepted_by=invitation.accepted_by,
+                sent_at=invitation.sent_at,
             )
 
     def invitations_of_round(self, round_id: RoundId) -> list[Invitation]:

@@ -34,6 +34,7 @@ from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService
 from previewit.application.criteria import CriterionRegistry
 from previewit.application.invitations import InvitationsService
+from previewit.application.ports import MailError
 from previewit.application.reviews import ReviewsService
 from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
@@ -74,8 +75,11 @@ class FakeProvider:
 class Outbox:
     def __init__(self) -> None:
         self.sent: list[tuple[str, str, str]] = []
+        self.failing = False  # a test sets this to make the mail server "go down"
 
     def send(self, to: str, subject: str, body: str) -> None:
+        if self.failing:
+            raise MailError("smtp is down")
         self.sent.append((to, subject, body))
 
     def last_link(self) -> str:
@@ -170,6 +174,8 @@ def make_harness(
         UnlimitedEntitlements(),
         lambda: f"i{next(ids)}",
         clock,
+        mailer=outbox,
+        base_url=base_url,
         policy=policy,
     )
     reviews = ReviewsService(

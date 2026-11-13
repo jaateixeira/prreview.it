@@ -16,6 +16,7 @@ from previewit.domain.rounds import RoundId
 from previewit.domain.tenancy import OrgId, SpaceId
 
 MAX_SUBMISSIONS_PER_INVITATION = 50
+MAX_COVER_LETTER = 2000
 
 
 class InvalidInvitation(ValueError):
@@ -49,6 +50,7 @@ class Invitation:
     expires_at: datetime
     revoked: bool
     accepted_by: UserId | None
+    sent_at: datetime | None = None  # when Previewit mailed it; the organizer may also send it
 
     def usable(self, now: datetime) -> bool:
         return not self.revoked and self.expires_at > now

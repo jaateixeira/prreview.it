@@ -82,3 +82,52 @@ def test_a_revoked_invitation_stops_working(page: Page, browser: Browser, base_u
         expect(stranger.get_by_role("heading", name="Invitation not valid")).to_be_visible()
     finally:
         stranger_ctx.close()
+
+
+def _invitation_mail(outbox, email: str) -> tuple[str, str]:
+    """The subject and body of the invitation mail sent to this address."""
+    _, subject, body = next(m for m in reversed(outbox.sent) if m[0] == email and "/i/" in m[2])
+    return subject, body
+
+
+def test_previewit_emails_the_invitation_with_a_cover_letter(
+    page: Page, browser: Browser, base_url: str, outbox
+):
+    teacher = TeacherPage(page, base_url)
+    organizer_email = outbox.sent[-1][0]  # the sign-up mail went to the organizer
+    confirm = (
+        page.context.new_page()
+    )  # Previewit sends mail in the organizer's name only if verified
+    confirm.goto(outbox.link_for(organizer_email))
+    confirm.get_by_role("button", name="Confirm email").click()
+    expect(confirm.get_by_role("heading", name="Email confirmed")).to_be_visible()
+    confirm.close()
+
+    teacher.create_course()
+    teacher.create_assignment("Essay one")
+    page.get_by_role("link", name="Review rounds").click()
+    RoundsPage(page).create("1", "manual")
+    email = f"{uuid.uuid4().hex[:8]}@example.org"
+    page.get_by_text("Invite a reviewer by email").click()
+    page.get_by_label("Email address").fill(email)
+    page.get_by_role("button", name="Create invitation for round 1").click()
+
+    # Previewit made the link, then asks whether it should send it, and for a cover letter
+    expect(page.locator("code.link")).to_contain_text("/i/")
+    page.get_by_text(f"Have Previewit email it to {email}").click()
+    page.get_by_label("Cover letter").fill("Dear Rita, your fresh eyes would help us.")
+    page.get_by_role("button", name="Send email").click()
+    expect(page.get_by_text(f"Invitation sent to {email}.")).to_be_visible()
+    expect(page.get_by_text(f"{email}: waiting, emailed")).to_be_visible()
+
+    subject, body = _invitation_mail(outbox, email)
+    assert "Essay one" in subject and "Dear Rita, your fresh eyes would help us." in body
+    link = next(w for w in body.split() if "/i/" in w)
+
+    reviewer_ctx = browser.new_context()
+    try:
+        reviewer = reviewer_ctx.new_page()
+        reviewer.goto(link)
+        expect(reviewer.get_by_text("Tina Teacher invited you to review")).to_be_visible()
+    finally:
+        reviewer_ctx.close()

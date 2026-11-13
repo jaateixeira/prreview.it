@@ -65,10 +65,23 @@
       </form>
     </details>
 
-    {% if new_link and new_link_round == r.id %}
-    <p class="notice" role="status">Send this link to the reviewer. It is shown only once:<br><code class="link">{{ new_link }}</code></p>
+    {% if fresh and fresh.round_id == r.id %}
+    <div class="notice" role="status">
+      <p>The invitation for {{ fresh.email }} is ready. The link is shown only once:<br><code class="link">{{ fresh.link }}</code></p>
+      <details>
+        <summary>Have Previewit email it to {{ fresh.email }}</summary>
+        <form method="post" action="/rounds/{{ r.id }}/invitations/send" hx-boost="false" class="form">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="token" value="{{ fresh.token }}">
+          <input type="hidden" name="email" value="{{ fresh.email }}">
+          <label class="field">Cover letter <textarea name="cover_letter" rows="6" maxlength="2000" placeholder="A few words to the reviewer: why you ask and what you hope for. It goes above the link."></textarea></label>
+          <button class="btn btn-small" type="submit">Send email</button>
+        </form>
+      </details>
+      <p><small>Or copy the link and send it yourself.</small></p>
+    </div>
     {% endif %}
-    <details {% if new_link_round == r.id or invited[r.id] %}open{% endif %}>
+    <details {% if (fresh and fresh.round_id == r.id) or invited[r.id] %}open{% endif %}>
       <summary>Invite a reviewer by email</summary>
       <form method="post" action="/rounds/{{ r.id }}/invitations" hx-boost="false" class="form">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
@@ -84,7 +97,7 @@
       {% if invited[r.id] %}
       <ul class="list">
         {% for i in invited[r.id] %}
-        <li>{{ i.email }}: {{ i.status }}{% if i.accepted_by %} ({{ i.accepted_by }}){% endif %}{% if i.work %}, {{ i.work | length }} to review{% endif %}
+        <li>{{ i.email }}: {{ i.status }}{% if i.accepted_by %} ({{ i.accepted_by }}){% endif %}{% if i.work %}, {{ i.work | length }} to review{% endif %}{% if i.sent %}, emailed{% endif %}
           {% if i.status == 'waiting' %}
           <form method="post" action="/rounds/{{ r.id }}/invitations/{{ i.id }}/revoke" hx-boost="false" class="inline">
             <input type="hidden" name="csrf" value="{{ csrf_token }}">

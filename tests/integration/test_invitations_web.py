@@ -24,14 +24,18 @@ def link_in(text: str) -> str:
     return match.group(0)
 
 
+def confirm_email(c: Course, client: TestClient, email: str) -> None:
+    mail = [m for m in c.h.outbox.sent if m[0] == email][-1]
+    path = "/verify?token=" + re.search(r"/verify\?token=(\S+)", mail[2]).group(1)  # type: ignore[union-attr]
+    token = csrf_token(client, path)
+    done = client.post("/verify", data={"csrf": token, "token": path.split("token=")[1]})
+    assert done.status_code == 200
+
+
 def verified_visitor(c: Course, email=EMAIL, name="Rita Reviewer", next_="/spaces") -> TestClient:
     visitor = c.h.new_client()
     signup(visitor, email, name, next_=next_)
-    mail = [m for m in c.h.outbox.sent if m[0] == email][-1]
-    path = "/verify?token=" + re.search(r"/verify\?token=(\S+)", mail[2]).group(1)  # type: ignore[union-attr]
-    token = csrf_token(visitor, path)
-    done = visitor.post("/verify", data={"csrf": token, "token": path.split("token=")[1]})
-    assert done.status_code == 200
+    confirm_email(c, visitor, email)
     return visitor
 
 
@@ -120,3 +124,62 @@ def test_invitation_pages_keep_the_token_out_of_referrers():
     c, call, _ = course_with_round()
     link = link_in(invite(c, call)[0].text)
     assert c.h.new_client().get(link).headers["referrer-policy"] == "same-origin"
+
+
+# --- Previewit sends the invitation: generate the link, ask, then ask for a cover letter -------
+
+
+def send(c: Course, rid: str, fresh_page: str, letter: str = "Please be kind."):
+    token = re.search(r"/i/([A-Za-z0-9_-]+)", fresh_page).group(1)  # type: ignore[union-attr]
+    data = {"token": token, "email": EMAIL, "cover_letter": letter}
+    return post(c.teacher, f"/rounds/{rid}/invitations/send", data, page="/spaces"), token
+
+
+def test_the_organizer_is_asked_whether_previewit_should_send_it_and_for_a_cover_letter():
+    c, call, sub = course_with_round()
+    created, _ = invite(c, call, work=(sub,))
+    assert "Have Previewit email it to rita@x.fi" in created.text
+    assert 'name="cover_letter"' in created.text and "send it yourself" in created.text
+    assert c.h.outbox.sent[-1][0] != EMAIL  # nothing was sent yet
+
+
+def test_previewit_mails_the_invitation_with_the_cover_letter():
+    c, call, sub = course_with_round()
+    confirm_email(c, c.teacher, "tina@x.fi")
+    created, rid = invite(c, call, work=(sub,))
+    r, token = send(c, rid, created.text, "Dear Rita, your eyes would help.")
+    assert r.status_code == 200 and "Invitation sent to rita@x.fi." in r.text
+    to, subject, body = c.h.outbox.sent[-1]
+    assert to == EMAIL and "Essay" in subject
+    assert "Dear Rita, your eyes would help." in body and f"/i/{token}" in body
+    assert "rita@x.fi: waiting, 1 to review, emailed" in r.text
+    assert token not in r.text  # the link is not shown again
+
+
+def test_an_invitation_cannot_be_mailed_twice():
+    c, call, _ = course_with_round()
+    confirm_email(c, c.teacher, "tina@x.fi")
+    created, rid = invite(c, call)
+    send(c, rid, created.text)
+    again, _ = send(c, rid, created.text)
+    assert again.status_code == 400 and "already sent" in again.text
+    assert len([m for m in c.h.outbox.sent if m[0] == EMAIL]) == 1
+
+
+def test_the_organizer_must_have_a_verified_email_to_send():
+    c, call, _ = course_with_round()
+    created, rid = invite(c, call)
+    r, _ = send(c, rid, created.text)
+    assert r.status_code == 403 and not [m for m in c.h.outbox.sent if m[0] == EMAIL]
+
+
+def test_when_the_mail_fails_the_link_is_still_there_to_copy():
+    c, call, _ = course_with_round()
+    confirm_email(c, c.teacher, "tina@x.fi")
+    created, rid = invite(c, call)
+    link = link_in(created.text)
+    c.h.outbox.failing = True
+    r, _ = send(c, rid, created.text)
+    assert r.status_code == 502 and "could not be sent" in r.text and link in r.text
+    c.h.outbox.failing = False
+    assert send(c, rid, created.text)[0].status_code == 200

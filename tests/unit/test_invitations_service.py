@@ -12,6 +12,7 @@ from previewit.application.invitations import (
     InvitationsService,
     WrongEmail,
 )
+from previewit.application.ports import MailError
 from previewit.application.tenancy import Forbidden, NotFound, VerificationRequired
 from previewit.domain.identity import Email, User, UserId
 from previewit.domain.invitations import InvalidInvitation
@@ -23,9 +24,25 @@ from tests.unit.test_tenancy_service import AVA, BOB, ZED
 RITA = UserId("rita")  # an outsider: no membership anywhere, a verified email
 
 
+class Outbox:
+    """Records the mails the service sends."""
+
+    def __init__(self, broken: bool = False) -> None:
+        self.sent: list[tuple[str, str, str]] = []
+        self.broken = broken
+
+    def send(self, to: str, subject: str, body: str) -> None:
+        if self.broken:
+            raise MailError("smtp is down")
+        self.sent.append((to, subject, body))
+
+
 class InviteWorld(RoundsWorld):
-    def __init__(self, *args, entitlements=None, **kw):
+    def __init__(self, *args, entitlements=None, mail=None, verified_organizer=True, **kw):
         super().__init__(*args, **kw)
+        self.mail = mail or Outbox()
+        if verified_organizer:
+            self.users.mark_email_verified(TINA, Email(f"{TINA}@x.fi"))
         for uid, verified in ((RITA, True), (UserId("lars"), False)):
             self.users.add_user(
                 User(uid, uid.title(), Email(f"{uid}@x.fi"), verified, frozenset(), False), None
@@ -40,6 +57,8 @@ class InviteWorld(RoundsWorld):
             entitlements or self.c._entitlements,
             lambda: f"v{next(ids)}",
             self.clock,
+            mailer=self.mail,
+            base_url="https://previewit.test/",
         )
         self.work_by = self.work(SAM, SUE)  # two essays to review
         self.r = self.round()
@@ -203,3 +222,77 @@ def test_deleting_a_round_deletes_its_invitations(w: InviteWorld):
     _, token = w.iv.invite(TINA, w.r.id, "rita@x.fi")
     w.rr.delete_round(TINA, w.r.id)
     assert w.iv.preview(token) is None
+
+
+# --- Previewit sends the invitation, with the organizer's cover letter -----------------------
+
+
+def test_previewit_mails_the_invitation_with_the_cover_letter(w: InviteWorld):
+    _, token = w.iv.invite(TINA, w.r.id, "rita@x.fi", [w.work_by[SAM].id])
+    w.iv.send(TINA, w.r.id, token, "  Dear Rita,\nyour view on my course matters.  ")
+    [(to, subject, body)] = w.mail.sent
+    assert to == "rita@x.fi" and w.call.title in subject
+    assert "Dear Rita,\nyour view on my course matters." in body
+    assert f"https://previewit.test/i/{token}" in body
+    assert "Tina" in body and "rita@x.fi" in body  # who asked, and which address works
+    assert w.iv.invitations(TINA, w.r.id)[0].sent
+
+
+def test_the_cover_letter_is_optional_but_not_unlimited(w: InviteWorld):
+    _, token = w.iv.invite(TINA, w.r.id, "rita@x.fi")
+    with pytest.raises(InvalidInvitation):
+        w.iv.send(TINA, w.r.id, token, "x" * 2001)
+    assert w.mail.sent == [] and not w.iv.invitations(TINA, w.r.id)[0].sent
+    w.iv.send(TINA, w.r.id, token, "")
+    assert f"/i/{token}" in w.mail.sent[0][2]
+
+
+def test_an_invitation_is_mailed_once(w: InviteWorld):
+    _, token = w.iv.invite(TINA, w.r.id, "rita@x.fi")
+    w.iv.send(TINA, w.r.id, token, "Hello")
+    with pytest.raises(InvalidInvitation):
+        w.iv.send(TINA, w.r.id, token, "Hello again")
+    assert len(w.mail.sent) == 1
+
+
+def test_only_a_verified_organizer_of_that_round_can_send(w: InviteWorld):
+    _, token = w.iv.invite(TINA, w.r.id, "rita@x.fi")
+    for user in (SAM, AVA):
+        with pytest.raises(Forbidden):
+            w.iv.send(user, w.r.id, token, "")
+    with pytest.raises(NotFound):
+        w.iv.send(ZED, w.r.id, token, "")
+    other = w.round()
+    with pytest.raises(InvalidInvitationLink):  # a token belongs to its own round
+        w.iv.send(TINA, other.id, token, "")
+    with pytest.raises(InvalidInvitationLink):
+        w.iv.send(TINA, w.r.id, "nonsense", "")
+    assert w.mail.sent == []
+    unverified = InviteWorld(verified_organizer=False)
+    _, t2 = unverified.iv.invite(TINA, unverified.r.id, "rita@x.fi")
+    with pytest.raises(VerificationRequired):  # the mail goes out in their name
+        unverified.iv.send(TINA, unverified.r.id, t2, "")
+    assert unverified.mail.sent == []
+
+
+def test_a_revoked_or_used_invitation_is_not_mailed(w: InviteWorld):
+    _, token = w.iv.invite(TINA, w.r.id, "rita@x.fi")
+    w.iv.accept(RITA, token)
+    with pytest.raises(InvalidInvitation):
+        w.iv.send(TINA, w.r.id, token, "")
+    inv2, token2 = w.iv.invite(TINA, w.r.id, "pat@x.fi")
+    w.iv.revoke(TINA, w.r.id, inv2.id)
+    with pytest.raises(InvalidInvitationLink):
+        w.iv.send(TINA, w.r.id, token2, "")
+    assert w.mail.sent == []
+
+
+def test_a_mail_that_fails_leaves_the_invitation_usable_and_unsent():
+    w = InviteWorld(mail=Outbox(broken=True))
+    _, token = w.iv.invite(TINA, w.r.id, "rita@x.fi")
+    with pytest.raises(MailError):
+        w.iv.send(TINA, w.r.id, token, "Hello")
+    assert not w.iv.invitations(TINA, w.r.id)[0].sent
+    w.mail.broken = False
+    w.iv.send(TINA, w.r.id, token, "Hello")  # trying again is allowed
+    assert w.iv.accept(RITA, token).created == 0
