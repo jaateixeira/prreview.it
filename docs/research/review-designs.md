@@ -89,7 +89,7 @@ classDiagram
 | Dimension | Question it answers | Status in Previewit |
 |---|---|---|
 | Purpose | Help the author, grade, decide, or assure compliance? | Deferred (`purpose` on a Round) |
-| Reviewer pool | Are reviewers the authors, a separate panel, another organization, or several rater groups? | Authors built; others by hand (ADR 0014) |
+| Reviewer pool | Are reviewers the authors, a separate panel, another organization, or several rater groups? | Authors built (M4). Reviewers who are not authors join by Invitation (ADR 0017). Another organization and rater groups proposed |
 | Review unit | One Submission, a set to compare, a Party, or a whole quality system? | Submission built; others proposed |
 | Reviews per Submission | How many reviewers each? | Built (`per_submission`) |
 | Allocation | Who decides the pairs, and from what information? | Random, round-robin, manual built |
@@ -130,13 +130,13 @@ sequenceDiagram
 
 ### 2.3 Journal (scholarly publishing)
 
-An editor (Organizer) screens each Submission, invites two to four external reviewers by expertise, and decides. Reviewers are hidden from authors, and sometimes authors from reviewers. The loop of revision and Re-review runs until a Decision [Shah22, NISO23].
+An editor (Organizer) screens each Submission, sends Invitations to two to four external reviewers chosen by expertise, and decides. Reviewers are hidden from authors, and sometimes authors from reviewers. The loop of revision and Re-review runs until a Decision [Shah22, NISO23].
 
 ```mermaid
 stateDiagram-v2
     [*] --> Submitted
     Submitted --> DeskRejected: editor screens scope and quality
-    Submitted --> UnderReview: editor invites reviewers
+    Submitted --> UnderReview: editor sends Invitations
     UnderReview --> AwaitingDecision: Reviews received
     AwaitingDecision --> Accepted
     AwaitingDecision --> RevisionRequested: minor or major
@@ -327,7 +327,9 @@ Three patterns stand out:
 | Group as author or reviewer, shared Review | Built (M5) | Reciprocal Round, inspection |
 | Anonymity in four directions, with reveal | Recorded (M4); applied in M6 | All |
 | Author response and Resolution | Planned (M6) | Journal, conference, code review, inspection |
-| Reviewer pool separate from authors, allocated automatically | Proposed; ADR 0014 pairs outsiders by hand | All except review by link and the reciprocal Round |
+| Call for authors, public or protected by a token | Built (ADR 0017) | Journal, conference, grant funding |
+| Reviewers who are not authors | Built (ADR 0017): each joins by an Invitation that lists the Submissions to review | All except review by link and the reciprocal Round |
+| Automatic allocation over a reviewer pool separate from the authors | Proposed; automatic allocation pairs authors who hold the reviewer role | Conference, grant funding, clinical |
 | Expertise, bids and conflicts of interest in allocation | Deferred (year 2) | Journal, conference, grant funding |
 | Discussion among reviewers (Consensus review) | Deferred | Conference, grant funding, inspection, clinical |
 | Sign-off and Decision | Deferred | Journal, conference, grant funding, code review, inspection, firm-on-firm |
@@ -343,7 +345,7 @@ Three patterns stand out:
 
 For meeting-based review designs Previewit can still carry the asynchronous parts: preparation, the issue log as Annotations, rework and follow-up.
 
-**Suggested order after the Education preset:** (1) a separate reviewer pool, because eight of the ten review designs need it; (2) Sign-off with a second level, which opens journals, conferences and inspections; (3) Party as the review unit, which opens teammate evaluation, the nearest neighbour of the first market.
+ADR 0017 delivered the first step: reviewers who are not authors, which eight of the ten review designs need. **Suggested order from here:** (1) Sign-off with a second level, which opens journals, conferences and inspections; (2) Party as the review unit, which opens teammate evaluation, the nearest neighbour of the first market; (3) automatic allocation over a separate reviewer pool, for calls too large to pair by Invitation.
 
 ## 5. Sources added on this page
 
