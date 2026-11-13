@@ -102,7 +102,14 @@ EDUCATION = Preset(
     },
 )
 
-PRESETS: dict[str, Preset] = {EDUCATION.key: EDUCATION}
+# For anyone who just wants a review: no school words. Its Space is a "review space".
+GENERAL = Preset(
+    key="general",
+    label="General",
+    vocabulary={"space": "review space", "spaces": "review spaces"},
+)
+
+PRESETS: dict[str, Preset] = {EDUCATION.key: EDUCATION, GENERAL.key: GENERAL}
 
 
 def get_preset(key: str) -> Preset | None:

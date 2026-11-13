@@ -35,6 +35,7 @@ from previewit.application.calls import CallsService
 from previewit.application.criteria import CriterionRegistry
 from previewit.application.invitations import InvitationsService
 from previewit.application.ports import MailError
+from previewit.application.quick_review import QuickReviewService
 from previewit.application.reviews import ReviewsService
 from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
@@ -191,9 +192,10 @@ def make_harness(
         lambda: f"v{next(ids)}",
         clock,
     )
+    quick = QuickReviewService(tenancy, calls, rounds, invitations, artifacts, users, clock)
     settings = Settings(secret_key="test-secret", base_url=base_url, verification_policy=policy)
     app = build_app(
-        settings, auth, verification, tenancy, calls, rubrics, rounds, reviews, invitations,
+        settings, auth, verification, tenancy, calls, rubrics, rounds, reviews, invitations, quick,
         dict(providers or {}),
     )  # fmt: skip
     client = TestClient(app, base_url=base_url, follow_redirects=False)

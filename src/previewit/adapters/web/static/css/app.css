@@ -93,3 +93,61 @@ select, .inline input[type=text] { font: inherit; padding: var(--space-1) var(--
 
 /* role checkboxes (space members and invitation links) */
 fieldset.inline-roles { border: 0; padding: 0; margin: 0; display: inline-flex; gap: var(--space-2); }
+
+/* request a review: three friendly steps on one page */
+.cta { display: grid; gap: var(--space-2); justify-items: start; margin: 0 0 var(--space-5); }
+.cta small { color: var(--color-ink-soft); }
+.btn-big { display: inline-block; text-decoration: none; font-size: 1.25rem;
+  padding: var(--space-3) var(--space-5); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.actions .btn { display: inline-block; text-decoration: none; }
+.steps { counter-reset: step; margin: 0; }
+.step { border: 0; margin: 0; padding: var(--space-4); display: grid; gap: var(--space-3); }
+.step legend { float: left; width: 100%; padding: 0; font-size: 1.25rem; font-weight: 800; }
+.step legend::before { counter-increment: step; content: counter(step); display: inline-grid;
+  place-items: center; width: 2rem; height: 2rem; margin-right: var(--space-2); border-radius: 50%;
+  background: var(--color-accent); color: var(--color-accent-ink); }
+.step legend + * { clear: both; }
+.field small { font-weight: 400; color: var(--color-ink-soft); }
+.field textarea, .field select { font: inherit; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-ink-soft); border-radius: var(--radius-s); }
+.check { display: flex; gap: var(--space-2); align-items: center; font-weight: 600; }
+.hint { color: var(--color-ink-soft); margin: var(--space-1) 0; }
+.email-check { display: grid; gap: var(--space-2); margin-top: var(--space-2); }
+.ready { color: var(--color-ok); margin: 0; }
+.chips, .bad { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap;
+  gap: var(--space-2); }
+.chips li { background: var(--color-ok-soft); color: var(--color-ok); border-radius: 999px;
+  padding: var(--space-1) var(--space-3); font-size: .9rem; }
+.bad li { background: var(--color-surface); border-radius: var(--radius-s);
+  padding: 0 var(--space-2); }
+.samples summary { cursor: pointer; font-weight: 700; color: var(--color-accent); }
+.sample pre { background: var(--color-bg); border-radius: var(--radius-s);
+  padding: var(--space-2) var(--space-3); overflow-x: auto; margin: 0 0 var(--space-3); }
+.pill-warn { background: #fdecea; color: #8a1c13; }
+.pill:not(.pill-ok):not(.pill-warn) { background: var(--color-accent-soft); }
+.link-box { width: 100%; margin-top: var(--space-1); font: inherit; font-size: .9rem;
+  padding: var(--space-1) var(--space-2); border: 1px solid var(--color-ink-soft);
+  border-radius: var(--radius-s); background: var(--color-bg); color: var(--color-ink); }
+.reviewers li { background: var(--color-bg); border-radius: var(--radius-s); padding: var(--space-2) var(--space-3); }
+
+/* a little celebration, with no script */
+.done { position: relative; }
+.confetti { position: absolute; inset: 0 0 auto 0; height: 0; pointer-events: none; overflow: visible; }
+.confetti i { position: absolute; top: -8px; width: 10px; height: 16px; border-radius: 2px;
+  background: var(--color-accent); opacity: 0; animation: confetti 2.4s ease-out forwards; }
+.confetti i:nth-child(3n) { background: var(--color-ok); }
+.confetti i:nth-child(3n+1) { background: var(--color-focus); }
+.confetti i:nth-child(5n) { width: 14px; height: 8px; }
+.confetti i:nth-child(1) { left: 6%; animation-delay: 0s; } .confetti i:nth-child(2) { left: 14%; animation-delay: .15s; }
+.confetti i:nth-child(3) { left: 22%; animation-delay: .3s; } .confetti i:nth-child(4) { left: 30%; animation-delay: .05s; }
+.confetti i:nth-child(5) { left: 38%; animation-delay: .25s; } .confetti i:nth-child(6) { left: 46%; animation-delay: .1s; }
+.confetti i:nth-child(7) { left: 54%; animation-delay: .35s; } .confetti i:nth-child(8) { left: 62%; animation-delay: .2s; }
+.confetti i:nth-child(9) { left: 70%; animation-delay: 0s; } .confetti i:nth-child(10) { left: 78%; animation-delay: .3s; }
+.confetti i:nth-child(11) { left: 84%; animation-delay: .12s; } .confetti i:nth-child(12) { left: 90%; animation-delay: .4s; }
+.confetti i:nth-child(13) { left: 34%; animation-delay: .45s; } .confetti i:nth-child(14) { left: 66%; animation-delay: .5s; }
+@keyframes confetti {
+  0% { opacity: 1; transform: translateY(0) rotate(0); }
+  100% { opacity: 0; transform: translateY(220px) rotate(300deg); }
+}
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } }

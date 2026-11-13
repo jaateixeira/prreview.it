@@ -20,6 +20,7 @@ from previewit.adapters.web.calls_routes import build_calls_router
 from previewit.adapters.web.docs_routes import build_docs_router
 from previewit.adapters.web.invitations_routes import build_invitations_router
 from previewit.adapters.web.kit import WebKit
+from previewit.adapters.web.quick_review_routes import build_quick_review_router
 from previewit.adapters.web.reviews_routes import build_reviews_router
 from previewit.adapters.web.rounds_routes import build_rounds_router
 from previewit.adapters.web.rubrics_routes import build_rubrics_router
@@ -32,6 +33,7 @@ from previewit.application.invitations import (
     InvitationsService,
     WrongEmail,
 )
+from previewit.application.quick_review import QuickReviewService
 from previewit.application.reviews import ReviewsService
 from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
@@ -61,6 +63,7 @@ def build_app(
     rounds: RoundsService,
     reviews: ReviewsService,
     invitations: InvitationsService,
+    quick: QuickReviewService,
     providers: Mapping[Provider, ExternalProvider],
 ) -> FastAPI:
     app = FastAPI(title="Previewit", docs_url=None, redoc_url=None)
@@ -118,6 +121,7 @@ def build_app(
     )
     app.include_router(build_invitations_router(invitations=invitations, kit=kit))
     app.include_router(build_reviews_router(reviews=reviews, kit=kit))
+    app.include_router(build_quick_review_router(quick=quick, kit=kit))
 
     def error_page(request: Request, status: int, title: str, message: str):
         return kit.render(

@@ -15,7 +15,7 @@
   <header class="topbar">
     <a class="brand" href="/"><span class="brand-dot" aria-hidden="true"></span>Previewit</a>
     <nav aria-label="Main">
-      {% if request.state.user %}<a href="/spaces">Spaces</a> <a href="/account">Account</a>
+      {% if request.state.user %}<a href="/review/new">Request a review</a> <a href="/spaces">Spaces</a> <a href="/account">Account</a>
       {% else %}<a href="/login">Log in</a> <a href="/signup">Sign up</a>{% endif %}
     </nav>
   </header>

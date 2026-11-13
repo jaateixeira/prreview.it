@@ -43,6 +43,8 @@ Status column:
 | **Reviewer** / **Author** | Two roles (above) and, per task, two *relations* a Party has to a Submission. The same Party can be author of one Submission and reviewer of another. | Core | `ReviewTask.reviewer`, `Submission.author` | (none) | grader, evaluator, student author |
 | **Share link** | A link that gives access to one Call or Submission with minimal sign-up. The author is the sender; an Invitation is personal and bound to an email; a share link is not. | Core | `ShareLink` | (none) | invite (an invite adds a Member) |
 | **Preset** | A bundle of vocabulary, roles, rubric templates and defaults for a kind of organization. | Core | `Preset` | (Education) | mode, template (a template is a Rubric template) |
+| **Request a review** | The quick way to start: one page where a person adds a file and the reviewers' email addresses and sends it out. It makes the Review space, call, Submission, Round and Invitations in one step (ADR 0018). | Core | `QuickReviewService`, `/review/new` | (none) | wizard, quick start, upload form |
+| **General preset** | The preset used when a Review space is made by *Request a review*: it says *review space* and nothing from a school. | Core | `GENERAL` | (none) | default preset (Education stays the first preset) |
 
 **The three processes** are the way to explain Previewit. Each is a flow between the three roles:
 
