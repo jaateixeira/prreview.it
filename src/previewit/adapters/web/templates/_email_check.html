@@ -1,0 +1,24 @@
+{# Live feedback on the typed addresses. Needs `found` (an EmailList); `check_error` is a problem with an imported file. #}
+<div id="email-check" class="email-check" aria-live="polite">
+  {% if check_error %}<p class="error" role="alert">{{ check_error }}</p>{% endif %}
+  {% if not found.emails and not found.invalid %}
+  <p class="hint">Type or paste addresses, separated by commas, spaces or new lines.</p>
+  {% endif %}
+  {% if found.emails %}
+  {% set n = found.emails | length %}
+  <p class="ready"><strong>{{ n }} reviewer{{ '' if n == 1 else 's' }}</strong> ready</p>
+  <ul class="chips">{% for e in found.emails %}<li>{{ e.value }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if found.invalid %}
+  <div class="error" role="alert">
+    <ul class="bad">{% for entry in found.invalid %}<li><code>{{ entry }}</code> does not look like an email address</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if found.duplicates %}
+  <p class="hint">{{ found.duplicates }} repeated address{{ '' if found.duplicates == 1 else 'es' }} left out.</p>
+  {% endif %}
+  {% if found.over_limit %}
+  <p class="error" role="alert">That is too many: ask up to {{ max_emails }} reviewers at a time.
+    {{ found.over_limit }} more {{ 'was' if found.over_limit == 1 else 'were' }} not counted.</p>
+  {% endif %}
+</div>

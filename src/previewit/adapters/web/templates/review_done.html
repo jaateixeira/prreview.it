@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack done">
+  <div class="confetti" aria-hidden="true">{% for i in range(14) %}<i></i>{% endfor %}</div>
+  {% set sent = rows | selectattr('0.sent') | list | length %}
+  <h1>{% if rows and sent == rows | length %}Sent!{% else %}Ready!{% endif %}</h1>
+  <p class="lead">“{{ title }}” is up for review by {{ rows | length }}
+    {{ 'person' if rows | length == 1 else 'people' }}.</p>
+
+  <div class="card">
+    <h2>Your reviewers</h2>
+    <p class="notice" role="status">Each personal link is shown only once, here. Copy any you
+      want to send yourself.</p>
+    <ul class="list reviewers">
+      {% for invite, link in rows %}
+      <li>
+        <strong>{{ invite.address }}</strong>
+        {% if invite.sent %}<span class="pill pill-ok">Emailed</span>
+        {% elif invite.error %}<span class="pill pill-warn">Could not email</span>
+        {% else %}<span class="pill">Not emailed</span>{% endif %}
+        {% if invite.error %}<br><small>{{ invite.error }}. Send them this link yourself.</small>{% endif %}
+        <input class="link-box" readonly value="{{ link }}" aria-label="Personal link for {{ invite.address }}"
+          onfocus="this.select()">
+      </li>
+      {% endfor %}
+    </ul>
+    {% if result.not_invited %}
+    <p class="error" role="alert">These people were left out because you reached your sharing limit:
+      {{ result.not_invited | join(', ') }}.</p>
+    {% endif %}
+  </div>
+
+  <p class="actions">
+    <a class="btn" href="/calls/{{ result.call_id }}/rounds">Follow the reviews</a>
+    <a class="btn btn-secondary" href="/review/new">Request another</a>
+    <a href="/spaces/{{ result.space_id }}">Open the review space</a>
+  </p>
+</section>
+{% endblock %}

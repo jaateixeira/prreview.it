@@ -28,9 +28,10 @@ flowchart LR
         UC14("Send call for reviewers: personal invitations")
         UC15("Open invitation, verify email")
         UC16("Audit the review process")
+        UC17("Request a review: file and emails in one step")
     end
 
-    ORG --- UC1 & UC2 & UC3 & UC4 & UC5 & UC6 & UC13 & UC14
+    ORG --- UC1 & UC2 & UC3 & UC4 & UC5 & UC6 & UC13 & UC14 & UC17
     AUT --- UC7 & UC8 & UC9
     REV --- UC10 & UC15
     AUD -.- UC16
@@ -54,6 +55,7 @@ flowchart LR
 | Create call with rubric | M2, M3 | Call = assignment in Education |
 | Send call for authors | M2, MA step C (done) | Public (plain URL) or protected (URL with token); revoke or replace the token |
 | Send call for reviewers | MA step D (done) | One personal invitation per reviewer, bound to an email, carrying the work to review; Previewit can email it with a cover letter |
+| Request a review (quick start) | MQ | One page: file, typed or imported emails (txt, csv, json, xml), send. Makes space, call, round and invitations ([ADR 0018](../adr/0018-request-a-review.md)) |
 | Open invitation, verify email | MA step D (done) | A verified email is the only requirement |
 | Audit the review process | Deferred | Auditor: read-only over reviews, allocation and the edit trail |
 | Submit work or a revision | M2 | Text and PDF; individual or group |

@@ -1,0 +1,11 @@
+{# The addresses box with its live check. Needs `emails`, `found` and `max_emails`; `check_error` is optional. #}
+<div id="reviewers-box">
+  <label class="field">Email addresses
+    <textarea id="emails" name="emails" rows="5" autocomplete="off" spellcheck="false"
+      placeholder="ana@example.org, bo@example.org"
+      hx-post="/review/emails/check" hx-trigger="input changed delay:400ms"
+      hx-target="#email-check" hx-swap="outerHTML" hx-params="csrf,emails" hx-sync="this:replace"
+      aria-describedby="email-check">{{ emails }}</textarea>
+  </label>
+  {% include "_email_check.html" %}
+</div>

@@ -37,10 +37,21 @@ Calls travel as links. A call for authors is **public** (anyone with the plain l
 
 An auditor, who checks how reviews were done, is planned for later.
 
+### The quickest start: Request a review
+
+Press **Request a review** on the home page. Sign in with Google, Apple or your email, and one page asks for three things:
+
+1. **The work.** Choose a PDF or a text file (`.txt`, `.md`), or paste the text. The title comes from the file name if you leave it empty. Other kinds of file are not reviewed yet: save them as a PDF.
+2. **The reviewers.** Type or paste email addresses, separated by commas, spaces or new lines. Previewit checks them as you type and points at any that do not look right. Or import a list from a `.txt`, `.csv`, `.json` or `.xml` file: Previewit picks out the addresses. **See a sample** shows each format and lets you download it.
+3. **Send it.** Add a few words for the reviewers and a due date if you like (two weeks otherwise). Leave **Email the invitations for me** ticked and Previewit mails each person their own link in your name (confirm your own email address first). Untick it and you get the links to send yourself.
+
+Previewit makes the review space, the call, the round and one personal invitation per reviewer. The last page lists each reviewer with their link, shown once, and takes you to the round to follow progress.
+
 ### Two ways to start
 
 | Way | For | Milestone |
 |---|---|---|
+| **Request a review** | You want feedback on a file from a few people, now | MQ |
 | **Share a link** | One person wants feedback on one piece of work | M2 |
 | **Organize a round** | Many people review each other, with rules | M1 to M6 |
 

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack request">
+  <h1>Get your work reviewed</h1>
+  <p class="lead">Three quick steps: your file, your reviewers, send. Previewit makes the review
+    space for you.</p>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+  <form method="post" action="/review" enctype="multipart/form-data" hx-boost="false" class="form steps">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+
+    <fieldset class="card step">
+      <legend>What should we review?</legend>
+      <label class="field">Title <small>(we use the file name if you leave it empty)</small>
+        <input type="text" name="title" value="{{ draft.title }}" maxlength="200" autocomplete="off">
+      </label>
+      <label class="field">A PDF or text file <small>(PDF, .txt or .md, up to 10 MB)</small>
+        <input type="file" name="file" accept=".pdf,.txt,.md,application/pdf,text/plain">
+      </label>
+      <label class="field">or paste the text
+        <textarea name="text" rows="6">{{ draft.text }}</textarea>
+      </label>
+    </fieldset>
+
+    <fieldset class="card step">
+      <legend>Who should review it?</legend>
+      {% include "_reviewers_box.html" %}
+      <label class="field">or import a list <small>(.txt, .csv, .json or .xml)</small>
+        <input type="file" name="emails_file" accept=".txt,.csv,.json,.xml,text/plain,text/csv,application/json,text/xml"
+          hx-post="/review/emails/import" hx-trigger="change" hx-encoding="multipart/form-data"
+          hx-target="#reviewers-box" hx-swap="outerHTML" hx-params="csrf,emails,emails_file"
+          hx-on::after-request="this.value=''">
+      </label>
+      <details class="samples">
+        <summary>See a sample</summary>
+        <p>Any of these shapes works. Previewit picks out the email addresses.</p>
+        {% for name, sample in samples.items() %}
+        <div class="sample">
+          <p><strong>{{ name }}</strong>
+            <a href="/review/samples/{{ name }}" hx-boost="false" download>Download</a></p>
+          <pre>{{ sample.content }}</pre>
+        </div>
+        {% endfor %}
+      </details>
+    </fieldset>
+
+    <fieldset class="card step">
+      <legend>Send it</legend>
+      <label class="field">A few words for the reviewers <small>(optional)</small>
+        <textarea name="cover_letter" rows="3" maxlength="2000">{{ draft.cover_letter }}</textarea>
+      </label>
+      <label class="field">Reviews due <small>(optional, two weeks if empty)</small>
+        <input type="date" name="due" value="{{ draft.due }}">
+      </label>
+      <label class="check">
+        <input type="checkbox" name="send_emails"
+          {% if not can_send %}disabled{% elif draft.send_emails %}checked{% endif %}>
+        Email the invitations for me
+      </label>
+      {% if not can_send %}
+      <p class="hint">Confirm your email address first (see your <a href="/account">Account</a>) so
+        Previewit can email in your name. You can still get the links and send them yourself.</p>
+      {% endif %}
+      <button class="btn" type="submit">Send it out</button>
+    </fieldset>
+  </form>
+</section>
+{% endblock %}

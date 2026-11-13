@@ -43,6 +43,7 @@ from previewit.application.calls import CallsService
 from previewit.application.criteria import CriterionRegistry
 from previewit.application.invitations import InvitationsService
 from previewit.application.ports import Mailer
+from previewit.application.quick_review import QuickReviewService
 from previewit.application.reviews import ReviewsService
 from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
@@ -137,6 +138,15 @@ def create_app() -> FastAPI:
         policy=settings.verification_policy,
     )
     registry = ArtifactRegistry(artifact_types)
+    quick = QuickReviewService(
+        tenancy,
+        calls,
+        rounds,
+        invitations,
+        registry,
+        users,
+        lambda: datetime.now(UTC),
+    )
     reviews = ReviewsService(
         review_repo,
         round_repo,
@@ -172,6 +182,7 @@ def create_app() -> FastAPI:
         rounds,
         reviews,
         invitations,
+        quick,
         providers,
     )
 
