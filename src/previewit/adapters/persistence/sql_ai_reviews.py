@@ -45,6 +45,7 @@ def _row(review: AiReview) -> dict[str, Any]:
         "input_tokens": review.input_tokens,
         "output_tokens": review.output_tokens,
         "cost_microusd": int((review.cost_usd * MICRO).to_integral_value(ROUND_CEILING)),
+        "credit_cents": review.credit_cents,
     }
 
 
@@ -71,6 +72,7 @@ def _review(row: Any) -> AiReview:
         input_tokens=row.input_tokens,
         output_tokens=row.output_tokens,
         cost_usd=Decimal(row.cost_microusd) / MICRO,
+        credit_cents=row.credit_cents,
     )
 
 

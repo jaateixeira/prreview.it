@@ -28,7 +28,29 @@ url = "postgresql+psycopg://previewit:password@localhost/previewit"
 # local_country = "FI"
 # local_context = 8192                     # tokens a local model reads and writes in one go
 # local_models = ["qwen3:8b", "gemma3:12b"]  # offer only these; leave out to offer all
-# margin_percent = 30                      # on top of a service's price when Previewit pays
+# margin_percent = 30                      # on top of a service's price when paid with credit
+# usd_to_eur = "1.00"                      # euros for one dollar; err high (ADR 0026)
+# fees_and_tax_percent = 40                # on top again: VAT and Paddle's fee
+# keys_file = "ai-keys.toml"               # Previewit's own keys, for reviews paid with credit
+
+[seller]
+# Who runs and sells this Previewit (ADR 0026). Paddle's review reads it on /terms, /privacy
+# and /contact. A sole trader gives their own legal name.
+# legal_name = "Your Legal Name"
+# trading_name = "Previewit"
+# business_id = "1234567-8"                # Y-tunnus, once registered
+# address = "Street 1, 40100 Jyväskylä, Finland"
+# email = "hello@example.org"
+# phone = "+358 40 000 0000"
+# privacy_email = "privacy@example.org"    # defaults to email
+# processors = ["Brevo SAS, France: sends our emails", "...: hosts the site"]
+
+[paddle]
+# Paddle sells credit as Merchant of Record (ADR 0026). Start with a sandbox account.
+# environment = "sandbox"                  # sandbox | production
+# client_token = "test_..."                # Paddle > Developer tools > Authentication
+# webhook_secret_file = "paddle.secret"    # Paddle > Developer tools > Notifications
+# packs = { pri_01aaa = 5, pri_01bbb = 10, pri_01ccc = 25 }   # Paddle price id = whole euros
 
 [logging]
 level = "INFO"                             # TRACE | DEBUG | INFO | WARNING | ERROR

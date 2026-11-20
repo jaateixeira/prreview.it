@@ -10,6 +10,7 @@
       {% else %}none shared by your sign-in provider{% endif %}</dd>
     <dt>Sign-in methods</dt>
     <dd>{% if account.has_password %}Password{% if linked %}, {% endif %}{% endif %}{{ linked | join(", ") }}</dd>
+    {% if ai_on %}<dt>Credit</dt><dd><a href="/credit">Your credit and purchases</a></dd>{% endif %}
   </dl>
   {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
   {% if account.email and not account.email_verified %}

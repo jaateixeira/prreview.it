@@ -9,6 +9,7 @@ import secrets
 import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -61,7 +62,24 @@ class Settings:
     ai_local_country: str = "FI"  # and as a country code, for the flag
     ai_local_context: int = 8192  # tokens each local model reads and writes in one go
     ai_local_models: tuple[str, ...] = ()  # offer only these installed models; empty: all
-    ai_margin_percent: int = 30  # on top of a service's price when Previewit pays (M8)
+    ai_margin_percent: int = 30  # on top of a service's price when paid with credit
+    ai_usd_to_eur: str = "1.00"  # euros for one dollar, for prices in credit; err high
+    ai_fees_and_tax_percent: int = 40  # on top again: VAT and Paddle's fee (ADR 0026)
+    ai_keys_file: str | None = None  # Previewit's own keys for the services, for credit
+    # Who sells (ADR 0026): shown on the terms, privacy and contact pages that Paddle reviews.
+    seller_legal_name: str | None = None  # a sole trader's own legal name
+    seller_trading_name: str = "Previewit"
+    seller_business_id: str | None = None  # Y-tunnus, once registered
+    seller_address: str | None = None
+    seller_email: str | None = None
+    seller_phone: str | None = None
+    seller_privacy_email: str | None = None
+    seller_processors: tuple[str, ...] = ()  # who processes data for us, one line each
+    # Paddle, the merchant of record that sells credit (ADR 0026).
+    paddle_environment: str = "sandbox"  # sandbox | production
+    paddle_client_token: str | None = None  # test_... or live_...; safe to publish
+    paddle_webhook_secret: str | None = None
+    paddle_packs: tuple[tuple[str, int], ...] = ()  # (Paddle price id, whole euros)
 
     @property
     def https(self) -> bool:
@@ -126,6 +144,24 @@ class Settings:
                 m.strip() for m in (_get(env, "AI_LOCAL_MODELS") or "").split(",") if m.strip()
             ),
             ai_margin_percent=_number(env, "AI_MARGIN_PERCENT", cls.ai_margin_percent),
+            ai_usd_to_eur=_rate(env, "AI_USD_TO_EUR", cls.ai_usd_to_eur),
+            ai_fees_and_tax_percent=_number(
+                env, "AI_FEES_AND_TAX_PERCENT", cls.ai_fees_and_tax_percent
+            ),
+            ai_keys_file=_get(env, "AI_KEYS_FILE"),
+            seller_legal_name=_get(env, "SELLER_LEGAL_NAME"),
+            seller_trading_name=_get(env, "SELLER_TRADING_NAME") or cls.seller_trading_name,
+            seller_business_id=_get(env, "SELLER_BUSINESS_ID"),
+            seller_address=_get(env, "SELLER_ADDRESS"),
+            seller_email=_get(env, "SELLER_EMAIL"),
+            seller_phone=_get(env, "SELLER_PHONE"),
+            seller_privacy_email=_get(env, "SELLER_PRIVACY_EMAIL"),
+            seller_processors=tuple(
+                line.strip()
+                for line in (_get(env, "SELLER_PROCESSORS") or "").split("|")
+                if line.strip()
+            ),
+            **_paddle(env),
         )
 
 
@@ -149,6 +185,45 @@ def _number(env: Mapping[str, str], name: str, default: int) -> int:
     if value < 0:
         raise ConfigError(f"PREVIEWIT_{name} cannot be negative")
     return value
+
+
+def _rate(env: Mapping[str, str], name: str, default: str) -> str:
+    raw = (_get(env, name) or default).strip()
+    try:
+        value = Decimal(raw)
+    except InvalidOperation:
+        raise ConfigError(f"PREVIEWIT_{name} must be a number such as 0.92") from None
+    if not Decimal("0.1") <= value <= Decimal(10):
+        raise ConfigError(f"PREVIEWIT_{name} must be between 0.1 and 10")
+    return raw
+
+
+def _paddle(env: Mapping[str, str]) -> dict[str, Any]:
+    environment = (_get(env, "PADDLE_ENVIRONMENT") or "sandbox").strip().lower()
+    if environment not in ("sandbox", "production"):
+        raise ConfigError("PREVIEWIT_PADDLE_ENVIRONMENT must be sandbox or production")
+    token = _get(env, "PADDLE_CLIENT_TOKEN")
+    start = "test_" if environment == "sandbox" else "live_"
+    if token and not token.startswith(start):
+        raise ConfigError(
+            f"PREVIEWIT_PADDLE_CLIENT_TOKEN: a {environment} client-side token starts with {start}"
+        )
+    packs: list[tuple[str, int]] = []
+    for item in (_get(env, "PADDLE_PACKS") or "").split(","):
+        if not item.strip():
+            continue
+        price, _, amount = item.strip().partition(":")
+        if not price.startswith("pri_") or not amount.strip().isdigit():
+            raise ConfigError(
+                f"PREVIEWIT_PADDLE_PACKS: write each pack as pri_...:euros, not {item.strip()!r}"
+            )
+        packs.append((price, int(amount)))
+    return {
+        "paddle_environment": environment,
+        "paddle_client_token": token,
+        "paddle_webhook_secret": _get(env, "PADDLE_WEBHOOK_SECRET"),
+        "paddle_packs": tuple(packs),
+    }
 
 
 def _get(env: Mapping[str, str], name: str) -> str | None:
@@ -226,6 +301,19 @@ _KEYS: dict[tuple[str, str], str] = {
     ("ai", "local_country"): "AI_LOCAL_COUNTRY",
     ("ai", "local_context"): "AI_LOCAL_CONTEXT",
     ("ai", "margin_percent"): "AI_MARGIN_PERCENT",
+    ("ai", "usd_to_eur"): "AI_USD_TO_EUR",
+    ("ai", "fees_and_tax_percent"): "AI_FEES_AND_TAX_PERCENT",
+    ("ai", "keys_file"): "AI_KEYS_FILE",
+    ("seller", "legal_name"): "SELLER_LEGAL_NAME",
+    ("seller", "trading_name"): "SELLER_TRADING_NAME",
+    ("seller", "business_id"): "SELLER_BUSINESS_ID",
+    ("seller", "address"): "SELLER_ADDRESS",
+    ("seller", "email"): "SELLER_EMAIL",
+    ("seller", "phone"): "SELLER_PHONE",
+    ("seller", "privacy_email"): "SELLER_PRIVACY_EMAIL",
+    ("paddle", "environment"): "PADDLE_ENVIRONMENT",
+    ("paddle", "client_token"): "PADDLE_CLIENT_TOKEN",
+    ("paddle", "webhook_secret"): "PADDLE_WEBHOOK_SECRET",
     ("login.google", "client_id"): "GOOGLE_CLIENT_ID",
     ("login.google", "client_secret"): "GOOGLE_CLIENT_SECRET",
     ("login.apple", "client_id"): "APPLE_CLIENT_ID",
@@ -244,20 +332,30 @@ _KEYS: dict[tuple[str, str], str] = {
 # Secrets that may be read from a file instead: (section, "<key>_file") -> the key it fills.
 _SECRET_FILES: dict[tuple[str, str], tuple[str, str]] = {
     ("server", "secret_key_file"): ("server", "secret_key"),
+    ("paddle", "webhook_secret_file"): ("paddle", "webhook_secret"),
     ("login.apple", "private_key_file"): ("login.apple", "private_key"),
 }
-_PATH_KEYS = {"HAKA_CERT_FILE", "HAKA_KEY_FILE", "HAKA_METADATA_FILE", "HAKA_METADATA_CERT"}
+_PATH_KEYS = {
+    "HAKA_CERT_FILE",
+    "HAKA_KEY_FILE",
+    "HAKA_METADATA_FILE",
+    "HAKA_METADATA_CERT",
+    "AI_KEYS_FILE",
+}
 _SECRET_KEYS = {
     "SECRET_KEY",
     "SMTP_PASSWORD",
     "GOOGLE_CLIENT_SECRET",
     "APPLE_PRIVATE_KEY",
     "CACHE_URL",  # may carry a password
+    "PADDLE_WEBHOOK_SECRET",
 }
 _POLICY_KEY = ("policy", "require_verified_email_for")
 _ALIASES_KEY = ("server", "aliases")
 _LOCAL_MODELS_KEY = ("ai", "local_models")
-_INT_KEYS = {"SMTP_PORT", "AI_LOCAL_CONTEXT", "AI_MARGIN_PERCENT"}
+_PROCESSORS_KEY = ("seller", "processors")
+_PACKS_KEY = ("paddle", "packs")
+_INT_KEYS = {"SMTP_PORT", "AI_LOCAL_CONTEXT", "AI_MARGIN_PERCENT", "AI_FEES_AND_TAX_PERCENT"}
 _BOOL_KEYS = {"AI_ENABLED"}
 
 
@@ -308,6 +406,17 @@ def _read_file(path: Path) -> dict[str, str]:
             if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
                 raise ConfigError(f"{path}: {where} must be a list of model names")
             out["PREVIEWIT_AI_LOCAL_MODELS"] = ",".join(value)
+        elif (section, key) == _PROCESSORS_KEY:
+            if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+                raise ConfigError(f"{path}: {where} must be a list of lines")
+            out["PREVIEWIT_SELLER_PROCESSORS"] = "|".join(v.replace("|", "/") for v in value)
+        elif (section, key) == _PACKS_KEY:
+            if not isinstance(value, dict) or not all(
+                isinstance(k, str) and isinstance(v, int) and not isinstance(v, bool)
+                for k, v in value.items()
+            ):
+                raise ConfigError(f"{path}: {where} must map Paddle price ids to whole euros")
+            out["PREVIEWIT_PADDLE_PACKS"] = ",".join(f"{k}:{v}" for k, v in value.items())
         elif (section, key) in _SECRET_FILES:
             target = _SECRET_FILES[(section, key)]
             if target in flat:
@@ -328,7 +437,7 @@ def _read_file(path: Path) -> dict[str, str]:
 
 def _flatten(node: Mapping[str, Any], prefix: str, out: dict[tuple[str, str], Any]) -> None:
     for key, value in node.items():
-        if isinstance(value, dict):
+        if isinstance(value, dict) and (prefix, key) != _PACKS_KEY:  # packs are a table of values
             name = f"{prefix}.{key}" if prefix else key
             if not any(sec == name or sec.startswith(name + ".") for sec, _ in _all_sections()):
                 raise ConfigError(f"unknown section [{name}]")
@@ -340,7 +449,11 @@ def _flatten(node: Mapping[str, Any], prefix: str, out: dict[tuple[str, str], An
 
 
 def _all_sections() -> set[tuple[str, str]]:
-    return set(_KEYS) | set(_SECRET_FILES) | {_POLICY_KEY, _ALIASES_KEY, _LOCAL_MODELS_KEY}
+    return (
+        set(_KEYS)
+        | set(_SECRET_FILES)
+        | {_POLICY_KEY, _ALIASES_KEY, _LOCAL_MODELS_KEY, _PROCESSORS_KEY, _PACKS_KEY}
+    )
 
 
 def _scalar(path: Path, where: str, value: Any, name: str, base: Path) -> str:

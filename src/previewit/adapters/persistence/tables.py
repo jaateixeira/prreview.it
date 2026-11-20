@@ -460,10 +460,32 @@ ai_reviews = Table(
     Column("input_tokens", Integer, nullable=False),
     Column("output_tokens", Integer, nullable=False),
     Column("cost_microusd", Integer, nullable=False),  # millionths of a US dollar
+    Column("credit_cents", Integer, nullable=False, server_default="0"),  # ADR 0026
     ForeignKeyConstraint(
         ["submission_id", "org_id"], ["submissions.id", "submissions.org_id"], ondelete="CASCADE"
     ),
     Index("ix_ai_reviews_submission_id", "submission_id"),
     Index("ix_ai_reviews_requested_by", "requested_by", "requested_at"),
     Index("ix_ai_reviews_status", "status"),
+)
+
+
+# --- credit (ADR 0026): euro cents a person bought through Paddle and spent on AI reviews ---------
+# Credit belongs to the person, like their account: no org_id. The balance is the sum.
+
+credit_entries = Table(
+    "credit_entries",
+    metadata,
+    Column("seq", Integer, primary_key=True, autoincrement=True),  # the order they happened
+    Column("id", String(64), nullable=False, unique=True),
+    Column("user_id", String(64), ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
+    Column("amount_cents", Integer, nullable=False),
+    Column("kind", String(16), nullable=False),  # purchase | refund | hold | release
+    Column("reference", String(100), nullable=False),  # txn_..., adj_... or an AI review
+    Column("related", String(100), nullable=False, server_default=""),
+    Column("paid_cents", Integer, nullable=False, server_default="0"),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    UniqueConstraint("kind", "reference", name="uq_credit_entries_kind_reference"),
+    Index("ix_credit_entries_user_id", "user_id"),
+    Index("ix_credit_entries_related", "kind", "related"),
 )

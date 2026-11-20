@@ -2,16 +2,15 @@
 author and the organizers only.
 
 No model is asked anything before the person chooses it. Previewit pays for the small models on
-its own server. For any other model the person gives their own key: it is used for this one
-request and never stored, not even in the queue's database row. Paying through Previewit
-instead of a key comes with the plans (M8); until then the price is shown but cannot be chosen.
+its own server. For any other model the person gives their own key, used for this one request
+and never stored, or pays from their credit with Previewit's key (ADR 0026).
 """
 
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
@@ -24,6 +23,7 @@ from previewit.application.artifacts import (
     Upload,
 )
 from previewit.application.calls import CallsService
+from previewit.application.credits import CreditsService, NotEnoughCredit
 from previewit.application.ports import Entitlements, Mailer, MailError, UserRepository
 from previewit.application.quick_review import recognise
 from previewit.application.tenancy import NotFound
@@ -45,9 +45,12 @@ from previewit.domain.ai_reviews import (
     Payer,
 )
 from previewit.domain.calls import Artifact, SubmissionId
+from previewit.domain.credits import CreditPricing, euros
 from previewit.domain.identity import UserId
 
-DEFAULT_MARGIN = Decimal("0.30")  # on top of the service's price when Previewit pays (M8)
+DEFAULT_PRICING = CreditPricing(
+    usd_to_eur=Decimal("1.00"), margin=Decimal("0.30"), fees_and_tax=Decimal("0.40")
+)
 UNREAD_PAGE_CHARS = 18_000  # a web page not read yet: about a long article
 MAX_KEY_LENGTH = 512
 MARKER_OPEN, MARKER_CLOSE = "<<<WORK", "WORK>>>"
@@ -151,7 +154,9 @@ class AiReviewsService:
         base_url: str,
         ids: Callable[[], str],
         now: Callable[[], datetime],
-        margin: Decimal = DEFAULT_MARGIN,
+        pricing: CreditPricing = DEFAULT_PRICING,
+        credits: CreditsService | None = None,
+        house_keys: Mapping[str, str] | None = None,
     ) -> None:
         self._repo = repo
         self._catalog = catalog
@@ -165,7 +170,15 @@ class AiReviewsService:
         self._base_url = base_url.rstrip("/")
         self._ids = ids
         self._now = now
-        self.margin = margin
+        self.pricing = pricing
+        self.credits = credits
+        self._house_keys = dict(house_keys or {})  # Previewit's own keys, for credit (ADR 0026)
+
+    def credit_for(self, card: ModelCard) -> bool:
+        """The person may pay for this model from their credit instead of giving a key."""
+        return (
+            self.credits is not None and not card.free and bool(self._house_keys.get(card.service))
+        )
 
     # -- before the work is sent ---------------------------------------------------------------
 
@@ -183,7 +196,7 @@ class AiReviewsService:
 
     def suggestions(self, chars: int) -> tuple[list[Suggestion], list[Suggestion]]:
         """Three models to suggest and the others for "See more" (ADR 0025)."""
-        return suggest(self._catalog.cards(), chars, self.margin)
+        return suggest(self._catalog.cards(), chars, self.pricing)
 
     def cards(self) -> list[ModelCard]:
         return self._catalog.cards()
@@ -212,6 +225,9 @@ class AiReviewsService:
         now = self._now()
         made: list[tuple[AiReview, str]] = []
         for choice, card in zip(choices, cards, strict=True):
+            key = "" if card.free else choice.key.strip()
+            payer = Payer.FREE if card.free else Payer.OWN_KEY if key else Payer.CREDIT
+            held = self._most(card, len(text)) if payer is Payer.CREDIT else 0
             review = AiReview(
                 id=AiReviewId(self._ids()),
                 org_id=view.submission.org_id,
@@ -221,15 +237,24 @@ class AiReviewsService:
                 model_name=card.name,
                 hosted_in=card.hosted_in,
                 hosting=card.hosting,
-                payer=Payer.FREE if card.free else Payer.OWN_KEY,
+                payer=payer,
                 requested_by=actor,
                 requested_at=now,
                 note=note.strip()[:MAX_NOTE],
+                credit_cents=held,
             )
             self._repo.add(review)
-            made.append((review, "" if card.free else choice.key.strip()))
+            if payer is Payer.CREDIT:
+                assert self.credits is not None
+                try:
+                    self.credits.hold(actor, review.id, held)
+                except NotEnoughCredit:  # spent elsewhere a moment ago
+                    review = review.failed("Not enough credit left for this one.", now)
+                    self._repo.save(review)
+            made.append((review, key))
         for review, key in made:  # queued only once all are stored
-            self._jobs.start(review.id, key, free=review.payer is Payer.FREE)
+            if not review.finished:
+                self._jobs.start(review.id, key, free=review.payer is Payer.FREE)
         return [review for review, _ in made]
 
     def measure_submission(self, actor: UserId, submission_id: SubmissionId) -> int:
@@ -258,6 +283,11 @@ class AiReviewsService:
         if card is None:
             self._finish(review.failed("That model is no longer offered.", self._now()))
             return
+        if review.payer is Payer.CREDIT:
+            key = self._house_keys.get(card.service, "")
+            if not key:
+                self._finish(review.failed("Previewit cannot pay for this model now.", self._now()))
+                return
         review = review.writing()
         self._repo.save(review)
         try:
@@ -280,16 +310,18 @@ class AiReviewsService:
         done = review.done(
             answer.text, answer.input_tokens, answer.output_tokens, cost, self._now()
         )
+        if done.payer is Payer.CREDIT:  # never more than was held
+            done = replace(done, credit_cents=min(self.pricing.cents(cost), review.credit_cents))
         self._finish(done)
 
     def recover(self) -> None:
         """After a restart: free reviews go back in the queue. Keyed ones cannot: their key was
         never kept, so they fail and the person asks again."""
         for review in self._repo.unfinished():
-            if review.payer is Payer.FREE:
+            if review.payer in (Payer.FREE, Payer.CREDIT):  # no key of theirs was needed
                 waiting = review.waiting()
                 self._repo.save(waiting)
-                self._jobs.start(waiting.id, "", free=True)
+                self._jobs.start(waiting.id, "", free=review.payer is Payer.FREE)
             else:
                 self._repo.save(
                     review.failed(
@@ -316,11 +348,8 @@ class AiReviewsService:
             if card is None:
                 raise InvalidAiRequest("One of those AI models is no longer offered. Choose again.")
             key = choice.key.strip()
-            if not card.free and not key:
-                raise InvalidAiRequest(
-                    f"{card.name} needs your {card.key_label or 'key'}. Paying through Previewit "
-                    "instead opens soon."
-                )
+            if not card.free and not key and not self.credit_for(card):
+                raise InvalidAiRequest(f"{card.name} needs your {card.key_label or 'key'}.")
             if key and (len(key) > MAX_KEY_LENGTH or any(c.isspace() or c < " " for c in key)):
                 raise InvalidAiRequest(f"That {card.key_label or 'key'} does not look right.")
             if not card.fits(tokens):
@@ -329,6 +358,19 @@ class AiReviewsService:
                     "reads longer works."
                 )
             cards.append(card)
+        on_credit = [
+            card for choice, card in zip(choices, cards, strict=True)
+            if not card.free and not choice.key.strip()
+        ]  # fmt: skip
+        if on_credit:
+            assert self.credits is not None
+            needed = sum(self._most(card, chars) for card in on_credit)
+            have = self.credits.balance(actor)
+            if have < needed:
+                raise InvalidAiRequest(
+                    f"Your credit is {euros(have)}; paying from credit needs up to {euros(needed)} "
+                    "while the reviews are written. Buy credit, or give your own key."
+                )
         free = sum(1 for card in cards if card.free)
         if free:
             today = self._repo.free_since(actor, self._now() - timedelta(days=1))
@@ -338,6 +380,10 @@ class AiReviewsService:
                     "again tomorrow."
                 )
         return cards
+
+    def _most(self, card: ModelCard, chars: int) -> int:
+        """The credit held while `card` writes a review of `chars` characters."""
+        return self.pricing.cents(cost_of(card, tokens_for(chars), card.max_output_tokens))
 
     def _text_of(self, artifact: Artifact) -> str:
         try:
@@ -353,6 +399,11 @@ class AiReviewsService:
 
     def _finish(self, review: AiReview) -> None:
         self._repo.save(review)
+        if review.payer is Payer.CREDIT and self.credits is not None:
+            if review.status is AiReviewStatus.DONE:
+                self.credits.settle(review.requested_by, review.id, review.credit_cents)
+            else:
+                self.credits.release(review.requested_by, review.id)
         user = self._users.get(review.requested_by)
         if user is None or user.email is None:
             return

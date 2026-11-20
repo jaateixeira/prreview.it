@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack legal">
+  <h1>Terms and conditions</h1>
+  <p><small>Last updated {{ updated }}.</small></p>
+  {% include "_seller_missing.html" %}
+
+  <h2>1. Who we are</h2>
+  <p>Previewit at {{ site_host }} is run by {{ seller.legal_name or "[legal name not set]" }}{% if seller.trading_name %},
+    trading as {{ seller.trading_name }}{% endif %}{% if seller.business_id %} (business ID {{ seller.business_id }}){% endif %},
+    {{ seller.address or "[address not set]" }}. When you use Previewit, your agreement is with
+    {{ seller.legal_name or "us" }}. In these terms "we" and "us" mean {{ seller.legal_name or "the operator" }}.
+    Contact: {% if seller.email %}<a href="mailto:{{ seller.email }}">{{ seller.email }}</a>{% else %}[email not set]{% endif %}{% if seller.phone %},
+    {{ seller.phone }}{% endif %}.</p>
+
+  <h2>2. Accepting these terms</h2>
+  <p>By creating an account, reviewing by link or continuing to use Previewit, you agree to these
+    terms. If you use Previewit for an organization, you confirm that you may accept them for it.</p>
+
+  <h2>3. What you may not do</h2>
+  <ul>
+    <li>Break the law, or help anyone else to.</li>
+    <li>Share work you have no right to share, or infringe anyone's copyright or other rights.</li>
+    <li>Commit fraud, send spam, or harass, threaten or deceive people.</li>
+    <li>Upload malware; probe, scan or test our systems for weaknesses; scrape the site; or
+      overload it.</li>
+    <li>Reach data that is not yours, or get around limits, prices or security.</li>
+    <li>Use AI models through Previewit to make or spread illegal content, sexual content without
+      consent, deepfakes, hate or harassment, malware, or anyone's private details (doxxing), to
+      deceive people, or to make a model break its own safety rules (jailbreaking).</li>
+  </ul>
+
+  <h2>4. Your work and your reviews</h2>
+  <p>You keep every right you have in the work you submit and the reviews you write. You give us
+    the permission we need to run Previewit for you: to store them, show them to the people you
+    or your organizers choose, and send a work to the AI models you choose.</p>
+  <p>If something on Previewit infringes your rights, write to
+    {% if seller.email %}<a href="mailto:{{ seller.email }}">{{ seller.email }}</a>{% else %}us{% endif %}
+    with where it is and why. We remove it when the report is valid, and we close the accounts of
+    people who infringe again and again. We may remove content, or limit or suspend an account,
+    that breaks these terms.</p>
+
+  <h2>5. AI reviews</h2>
+  <ul>
+    <li>You choose the AI models. Your work goes to the service that runs each one; a flag shows
+      the country where it runs.</li>
+    <li>You are responsible for what you send and for how you use what comes back. Send only
+      work you have the right to send.</li>
+    <li>AI reviews can be wrong, incomplete or biased. They are feedback, not professional advice:
+      do not rely on them for legal, medical, financial or other regulated decisions without a
+      qualified person.</li>
+    <li>If you give your own key for a model's service, we use it for that one request and never
+      store it. What that service charges you is between you and it.</li>
+  </ul>
+
+  <h2>6. Our service</h2>
+  <p>We own Previewit and its name. Its software is open source under the GNU Affero General
+    Public License, version 3 or later, which governs your use of the code itself. We work to
+    keep Previewit running and correct, but we cannot promise that it will always be available or
+    free of errors. We may change or stop features, and we tell you before a change that matters
+    to you.</p>
+
+  <h2>7. Payments and credit</h2>
+  <p>Our order process is conducted by our online reseller Paddle.com. Paddle.com is the
+    Merchant of Record for all our orders. Paddle provides all customer service inquiries and
+    handles returns. Paddle's <a href="{{ buyer_terms }}">Buyer Terms</a> apply to your purchase.</p>
+  <ul>
+    <li>Credit is sold in packs, priced in euros. Prices include VAT where it applies; Paddle
+      collects and pays it.</li>
+    <li>Each purchase is a one-time payment. There is no subscription and nothing renews.</li>
+    <li>Credit pays for AI reviews when you give no key of your own. Before you ask, Previewit
+      shows what each review takes. While the review is written, it holds the most it may cost,
+      then gives back what was not used. A review that fails costs nothing.</li>
+    <li>Credit does not expire while your account exists. It is yours alone: it cannot be
+      transferred or exchanged for money, except by a refund under the
+      <a href="/refunds">refund policy</a> (a full refund within 30 days of buying, for any
+      reason).</li>
+  </ul>
+
+  <h2>8. Suspending and closing accounts</h2>
+  <p>We may suspend or close an account for a serious or repeated breach of these terms, for
+    unpaid charges, or when it puts other people, payments or our systems at risk. We tell you
+    why, unless the law or safety prevents it. You may stop using Previewit at any time and ask
+    us to delete your account.</p>
+
+  <h2>9. Warranties and liability</h2>
+  <p>Previewit is provided as it is, to the extent the law allows. Our total liability to you is
+    limited to what you paid us in the twelve months before the claim. Nothing in these terms
+    limits your rights as a consumer, or any liability that the law does not allow us to limit.</p>
+
+  <h2>10. Law and disputes</h2>
+  <p>Finnish law governs these terms. A dispute goes to the courts of Finland, unless the law of
+    the country where you live as a consumer gives you the right to go to its courts. Consumers
+    in Finland may also take a dispute to the Consumer Disputes Board (Kuluttajariitalautakunta).</p>
+
+  <h2>11. Changes</h2>
+  <p>We may update these terms. We tell you about important changes by email or on the site
+    before they take effect. The date at the top shows the latest version.</p>
+</section>
+{% endblock %}

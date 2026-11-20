@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack legal">
+  <h1>Refund policy</h1>
+  <p><small>Last updated {{ updated }}.</small></p>
+  {% include "_seller_missing.html" %}
+  <p class="lead">You can get a full refund of any purchase within 30 days of buying it, for any
+    reason. No questions asked.</p>
+  <h2>How to ask</h2>
+  <p>Our order process is conducted by our online reseller Paddle.com. Paddle.com is the
+    Merchant of Record for all our orders. Paddle handles refunds. Ask for yours at
+    <a href="https://paddle.net">paddle.net</a>, where you find your purchase with the email
+    address you used, or write to us at {% if seller.email %}<a href="mailto:{{ seller.email }}">{{ seller.email }}</a>{% else %}[email not set]{% endif %}
+    and we ask Paddle for you.</p>
+  <p>The money goes back to the way you paid. When a purchase is refunded, the credit it added
+    is removed from your account.</p>
+  <h2>Your rights</h2>
+  <p>This policy adds to your rights as a consumer; it does not take any away.</p>
+</section>
+{% endblock %}

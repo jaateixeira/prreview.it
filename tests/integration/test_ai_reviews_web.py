@@ -68,8 +68,11 @@ def test_saying_yes_suggests_three_models_with_flags_and_prices() -> None:
     assert "Free" in shown.text and "Previewit&#39;s own server, Finland" in shown.text
     assert "\U0001f1eb\U0001f1ee" in shown.text  # Finland's flag
     assert "With your Anthropic API key: <strong>about" in shown.text
-    assert "paying through Previewit opens soon" in shown.text
+    assert "Without a key: <strong>about €0.04</strong> from your credit" in words(shown.text)
+    assert "Needs your key: Previewit cannot pay for this one." in words(shown.text)  # Mistral
+    assert "Your credit: <strong>€0.00</strong>" in words(shown.text)
     assert 'type="password" name="ai_key_anthropic"' in shown.text
+    assert "Leave it empty to pay from your credit." in words(shown.text)
     assert h.ai_writer.calls == []  # suggesting asks no model anything
 
 
@@ -119,7 +122,7 @@ def test_a_paid_model_without_a_key_stops_the_form_before_anything_is_made() -> 
     h, client = organizer()
     refused = send(client, {"ai_model": [SONNET.key]})
     assert refused.status_code == 400
-    assert "needs your Anthropic API key" in refused.text
+    assert "Your credit is €0.00" in refused.text  # no key, no credit
     assert f'value="{SONNET.key}" checked' in refused.text  # the choice is kept
     assert 'value="My essay"' in refused.text and "Review requested" not in refused.text
     bad = send(client, {"ai_model": [SONNET.key], "ai_key_anthropic": "two words"})
@@ -158,8 +161,8 @@ def test_the_author_asks_more_models_from_the_works_page() -> None:
     ask = client.get(f"/submissions/{submission}/ai/ask")
     assert ask.status_code == 200 and "Ask them" in ask.text
     page = f"/submissions/{submission}"
-    refused = post(client, f"/submissions/{submission}/ai", {"ai_model": [SONNET.key]}, page=page)
-    assert "needs your Anthropic API key" in refused.text and "Ask them" in refused.text
+    refused = post(client, f"/submissions/{submission}/ai", {"ai_model": [CHEAP.key]}, page=page)
+    assert "Mistral/Large needs your key." in refused.text and "Ask them" in refused.text
     asked = post(
         client, f"/submissions/{submission}/ai",
         {"ai_model": [SONNET.key], "ai_key_anthropic": KEY, "ai_note": "Look at the ending"},

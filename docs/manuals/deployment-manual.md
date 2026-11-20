@@ -107,7 +107,9 @@ url = "valkey://127.0.0.1:6379/0"
 | `[logging]` | `level`: `TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `[policy]` | `require_verified_email_for`: which actions need a verified email. Default: none, so invited reviewers can review without an account and join afterwards (ADR 0020). Listing `review` or `join` turns that off |
 | `[login.google]`, `[login.apple]`, `[login.haka]` | providers, each on when configured ([`docs/auth/login-setup.md`](../auth/login-setup.md)) |
-| `[ai]` | AI reviews (ADR 0025): `enabled` (default `true`), `ollama_url` of your own model server for the free models, `local_place` and `local_country` (shown with a flag), `local_context` (tokens, default 8192), `local_models` (offer only these), `margin_percent` (default 30). See section 8a |
+| `[ai]` | AI reviews (ADR 0025): `enabled` (default `true`), `ollama_url` of your own model server for the free models, `local_place` and `local_country` (shown with a flag), `local_context` (tokens, default 8192), `local_models` (offer only these). For reviews paid with credit (ADR 0026): `keys_file`, `margin_percent` (30), `usd_to_eur` ("1.00"), `fees_and_tax_percent` (40). See sections 8a and 8b |
+| `[seller]` | Who runs and sells the site, shown on `/terms`, `/privacy`, `/contact` (ADR 0026): `legal_name`, `trading_name`, `business_id`, `address`, `email`, `phone`, `privacy_email`, `processors` |
+| `[paddle]` | Selling credit (ADR 0026): `environment` (`sandbox` or `production`), `client_token`, `webhook_secret` or `webhook_secret_file`, `packs` (Paddle price id = whole euros). See section 8b |
 
 The file holds secrets: keep it readable by the `previewit` account only (the server warns if group or others can read it). Typos in keys, sections or action names stop the server at start and name the setting. Forms are checked against `base_url`, so the site lives at that one address. List every other name that reaches the server under `aliases`: visitors who arrive there are sent to the same page at `base_url`. Each name needs DNS, a certificate and a place in the proxy (`server_name`) or tunnel.
 
@@ -232,9 +234,17 @@ Previewit looks up the installed models every five minutes; if the server is off
 
 The prices of the paid models are in `src/previewit/adapters/ai/models.toml`, with the date each was checked. They change often: check them every month. Set `enabled = false` to switch AI reviews off.
 
+## 8b. Selling credit through Paddle
+
+Paddle sells credit as merchant of record (ADR 0026); the step-by-step setup, sandbox first, is in [`docs/business/paddle-application.md`](../business/paddle-application.md). On the server:
+
+- Paddle posts signed notifications to `https://<your site>/paddle/webhook`. The proxy must pass `POST` there with the body untouched; Previewit checks the signature against the raw bytes.
+- The webhook secret and Previewit's own model keys are secrets: put them in files readable by the `previewit` account only (`webhook_secret_file`, `[ai] keys_file`, `chmod 600`). The keys file is TOML, one line per service: `anthropic = "sk-ant-…"`. A service without a key there can still be used with the person's own key.
+- Without `[paddle]` the site sells nothing: the Pricing page says credit opens soon.
+
 ## 9. Backup
 
-Submitted text and PDFs are stored **in PostgreSQL** (table `revisions`), so a database backup is the whole backup. AI reviews are in `ai_reviews`; no key is stored anywhere. The table `prepared_requests` also holds files that visitors chose before signing in, for one hour (at most 200 at a time, 2 GB at the very most); the running site deletes them when they expire (ADR 0024). Dump regularly and test a restore. Valkey needs no backup; it only holds copies. Keep the configuration and the secret key with the dumps: with a new key, everyone is signed out.
+Submitted text and PDFs are stored **in PostgreSQL** (table `revisions`), so a database backup is the whole backup. AI reviews are in `ai_reviews`; no key is stored anywhere. Credit is in `credit_entries`; Paddle keeps the payments themselves. The table `prepared_requests` also holds files that visitors chose before signing in, for one hour (at most 200 at a time, 2 GB at the very most); the running site deletes them when they expire (ADR 0024). Dump regularly and test a restore. Valkey needs no backup; it only holds copies. Keep the configuration and the secret key with the dumps: with a new key, everyone is signed out.
 
 ```bash
 sudo -u postgres pg_dump --format=custom previewit > previewit-$(date +%F).dump

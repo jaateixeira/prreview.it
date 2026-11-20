@@ -10,6 +10,7 @@ from decimal import Decimal
 import pytest
 
 from previewit.adapters.persistence.memory_ai_reviews import InMemoryAiReviewRepository
+from previewit.adapters.persistence.memory_credits import InMemoryCreditRepository
 from previewit.application.ai_reviews import (
     AiAnswer,
     AiChoice,
@@ -19,9 +20,11 @@ from previewit.application.ai_reviews import (
     InvalidAiRequest,
 )
 from previewit.application.artifacts import PluginServices, Upload
+from previewit.application.credits import CreditsService
 from previewit.application.tenancy import NotFound
 from previewit.domain.ai_models import ModelCard
 from previewit.domain.ai_reviews import AiReviewId, AiReviewStatus, Payer
+from previewit.domain.credits import CreditKind, CreditPack, CreditPricing
 from previewit.domain.identity import UserId
 from previewit.plugins.webpage import WebPageArtifact
 from tests.unit.test_ai_models import CHEAP, LOCAL, STRONG, card
@@ -32,6 +35,8 @@ from tests.unit.test_tenancy_service import SAM, TINA
 from tests.unit.test_webpage_plugin import ESSAY, FakePageChecker
 
 KEY = "sk-ant-secret-0123456789"
+HOUSE = "sk-ant-previewits-own-key-9876"  # Previewit's key, for reviews paid with credit
+PRICING = CreditPricing(usd_to_eur=Decimal(1), margin=Decimal("0.3"), fees_and_tax=Decimal(0))
 SONNET = replace(STRONG, key_label="Anthropic API key", key_url="https://console.example/keys")
 TINY = card(
     "tiny/one", context_tokens=6_000, max_output_tokens=1_000, typical_output_tokens=500, tier=1
@@ -87,10 +92,18 @@ class Limits:
 
 
 class AiWorld(InviteWorld):
-    def __init__(self, cards: list[ModelCard] | None = None, *, ai_repo=None, **kw) -> None:
+    def __init__(
+        self, cards: list[ModelCard] | None = None, *, ai_repo=None, credit_repo=None, **kw
+    ) -> None:
         super().__init__(**kw)
         self.mail = Outbox()
         self.repo = ai_repo if ai_repo is not None else InMemoryAiReviewRepository()
+        credit_ids = iter(range(1, 1000))
+        self.credits = CreditsService(
+            credit_repo if credit_repo is not None else InMemoryCreditRepository(),
+            self.users, [CreditPack("pri_5", 5)], ids=lambda: f"cr{next(credit_ids)}",
+            now=self.clock,
+        )  # fmt: skip
         self.writer = FakeWriter()
         self.jobs = Jobs()
         self.limits = Limits()
@@ -103,7 +116,8 @@ class AiWorld(InviteWorld):
         self.ai = AiReviewsService(
             self.repo, self.catalog, self.writer, self.jobs, self.c, self.c._artifacts,
             self.users, self.limits, self.mail, base_url="https://previewit.test/",
-            ids=lambda: f"ai{next(ids)}", now=self.clock,
+            ids=lambda: f"ai{next(ids)}", now=self.clock, pricing=PRICING, credits=self.credits,
+            house_keys={"anthropic": HOUSE},
         )  # fmt: skip
         self.jobs.service = self.ai
         self.sam_essay = self.work_by[SAM].id
@@ -143,7 +157,7 @@ def test_suggestions_come_from_the_catalogue(w: AiWorld) -> None:
     picks, more = w.ai.suggestions(2_000)
     assert [p.card for p in picks] == [LOCAL, SONNET, CHEAP]
     assert [m.card for m in more] == [TINY]
-    assert picks[1].estimate.previewit_usd > picks[1].estimate.own_key_usd  # 30% on top
+    assert picks[1].estimate.credit_cents > picks[1].estimate.own_key_usd * 100  # 30% on top
 
 
 # -- asking --------------------------------------------------------------------------------------
@@ -177,10 +191,58 @@ def test_a_free_model_needs_no_key(w: AiWorld) -> None:
     assert w.ai.reviews_for(SAM, w.sam_essay)[0].cost_usd == 0
 
 
-def test_a_paid_model_without_a_key_is_refused_for_now(w: AiWorld) -> None:
-    with pytest.raises(InvalidAiRequest, match=r"Anthropic API key.*opens soon"):
+def test_a_model_previewit_cannot_pay_for_needs_a_key(w: AiWorld) -> None:
+    assert not w.ai.credit_for(CHEAP) and w.ai.credit_for(SONNET) and not w.ai.credit_for(LOCAL)
+    with pytest.raises(InvalidAiRequest, match="needs your key"):  # no house key for it
+        w.ai.request(SAM, w.sam_essay, [AiChoice(CHEAP.key)])
+    assert w.ai.reviews_for(SAM, w.sam_essay) == [] and w.writer.calls == []
+
+
+# -- paying with credit (ADR 0026) -----------------------------------------------------------------
+
+
+def test_without_credit_a_review_paid_from_credit_is_refused(w: AiWorld) -> None:
+    with pytest.raises(InvalidAiRequest, match=r"Your credit is €0\.00.*Buy credit"):
         w.ai.request(SAM, w.sam_essay, [AiChoice(SONNET.key)])
     assert w.ai.reviews_for(SAM, w.sam_essay) == [] and w.writer.calls == []
+
+
+def test_credit_pays_with_previewits_key_and_only_what_the_review_cost(w: AiWorld) -> None:
+    w.credits.record_purchase("txn_1", SAM, [("pri_5", 1)], paid_cents=500)
+    [review] = w.ai.request(SAM, w.sam_essay, [AiChoice(SONNET.key)])
+    assert review.payer is Payer.CREDIT and review.credit_cents > 0  # held while written
+    [(model, key, _)] = w.writer.calls
+    assert (model, key) == (SONNET.key, HOUSE)
+    [done] = w.ai.reviews_for(SAM, w.sam_essay)
+    assert done.status is AiReviewStatus.DONE
+    assert done.credit_cents == 1  # $0.007 + 30% = 0.91 cents, rounded up
+    assert w.credits.balance(SAM) == 499
+    assert [e.kind for e in w.credits.history(SAM)] == [
+        CreditKind.RELEASE, CreditKind.HOLD, CreditKind.PURCHASE,
+    ]  # fmt: skip
+    assert HOUSE not in w.everything_kept()
+
+
+def test_a_failed_review_paid_with_credit_costs_nothing(w: AiWorld) -> None:
+    w.credits.record_purchase("txn_1", SAM, [("pri_5", 1)], paid_cents=500)
+    w.writer.fail = "Anthropic is busy, or the key has reached its limit. Try again later."
+    w.ai.request(SAM, w.sam_essay, [AiChoice(SONNET.key)])
+    [failed] = w.ai.reviews_for(SAM, w.sam_essay)
+    assert failed.status is AiReviewStatus.FAILED and failed.credit_cents == 0
+    assert w.credits.balance(SAM) == 500
+
+
+def test_a_review_paid_with_credit_runs_again_after_a_restart(w: AiWorld) -> None:
+    w.credits.record_purchase("txn_1", SAM, [("pri_5", 1)], paid_cents=500)
+    w.jobs.hold = True
+    w.ai.request(SAM, w.sam_essay, [AiChoice(SONNET.key)])
+    w.jobs.held.clear()
+    w.ai.recover()
+    [(review_id, key, free)] = w.jobs.held
+    assert (key, free) == ("", False)
+    w.ai.run(review_id, key)  # Previewit's own key is used, from its configuration
+    assert w.writer.calls[-1][1] == HOUSE
+    assert w.ai.reviews_for(SAM, w.sam_essay)[0].status is AiReviewStatus.DONE
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,5 @@
+<p>{{ seller.legal_name or "[legal name not set]" }}{% if seller.trading_name %}, trading as {{ seller.trading_name }}{% endif %}<br>
+  {% if seller.business_id %}Business ID {{ seller.business_id }}<br>{% endif %}
+  {{ seller.address or "[address not set]" }}<br>
+  Email: {% if seller.email %}<a href="mailto:{{ seller.email }}">{{ seller.email }}</a>{% else %}[not set]{% endif %}
+  {% if seller.phone %}<br>Phone: <a href="tel:{{ seller.phone | replace(' ', '') }}">{{ seller.phone }}</a>{% endif %}</p>

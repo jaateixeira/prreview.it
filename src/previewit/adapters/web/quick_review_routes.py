@@ -187,7 +187,9 @@ def build_quick_review_router(
                 work = Upload(url=found.web_address)
             else:
                 work = Upload(text=found.text) if found.text.strip() else None
-            context = await choices_context(ai, work, read_pages=True, chosen=found.ai_models)
+            context = await choices_context(
+                ai, work, read_pages=True, chosen=found.ai_models, user_id=current_user(request).id
+            )
             extra.update(context, kept_ai_models=True)
         return form_page(request, draft, extra=extra)
 
@@ -309,8 +311,9 @@ def build_quick_review_router(
             if work is None and kept is not None and kept.file_content is not None:
                 work = Upload(content=kept.file_content, filename=kept.file_name)
             ai_context = await choices_context(
-                ai, work, read_pages=user is not None, chosen=ai_models
-            )
+                ai, work, read_pages=user is not None, chosen=ai_models,
+                user_id=user.id if user is not None else None,
+            )  # fmt: skip
 
         def again(message: str, found: EmailList | None = None) -> Response:
             extra = {**keep, **ai_context}

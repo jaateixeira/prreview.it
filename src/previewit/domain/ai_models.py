@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from previewit.domain.credits import CreditPricing
+
 MILLION = Decimal(1_000_000)
 CHARS_PER_TOKEN = 4
 PROMPT_TOKENS = 800  # the instructions around the work
@@ -98,22 +100,19 @@ class Estimate:
     input_tokens: int
     own_key_usd: Decimal  # about what the service charges the person's own key
     at_most_usd: Decimal  # if the model writes as much as it may
-    previewit_usd: Decimal  # about what Previewit would charge when it pays (no key)
+    credit_cents: int  # about what it takes from the person's credit (no key), in euro cents
+    credit_at_most_cents: int  # what is held from the credit while it is written (ADR 0026)
 
     @property
     def free(self) -> bool:
         return self.at_most_usd == 0
 
 
-def estimate(card: ModelCard, input_tokens: int, margin: Decimal) -> Estimate:
-    """About what a review by `card` costs, with the person's own key and without one."""
+def estimate(card: ModelCard, input_tokens: int, pricing: CreditPricing) -> Estimate:
+    """About what a review by `card` costs, with the person's own key and from their credit."""
     usual = cost_of(card, input_tokens, card.typical_output_tokens)
-    return Estimate(
-        input_tokens,
-        usual,
-        cost_of(card, input_tokens, card.max_output_tokens),
-        usual * (1 + margin),
-    )
+    most = cost_of(card, input_tokens, card.max_output_tokens)
+    return Estimate(input_tokens, usual, most, pricing.cents(usual), pricing.cents(most))
 
 
 @dataclass(frozen=True)
@@ -124,7 +123,7 @@ class Suggestion:
 
 
 def suggest(
-    cards: Sequence[ModelCard], chars: int, margin: Decimal
+    cards: Sequence[ModelCard], chars: int, pricing: CreditPricing
 ) -> tuple[list[Suggestion], list[Suggestion]]:
     """(up to three suggested models, the others for "See more"), for a work of `chars`
     characters. Only models that can read the whole work appear. The three come from three
@@ -133,7 +132,7 @@ def suggest(
     fitting = [c for c in cards if c.fits(tokens)]
 
     def make(card: ModelCard, reason: str) -> Suggestion:
-        return Suggestion(card, estimate(card, tokens, margin), reason)
+        return Suggestion(card, estimate(card, tokens, pricing), reason)
 
     picks: list[Suggestion] = []
 

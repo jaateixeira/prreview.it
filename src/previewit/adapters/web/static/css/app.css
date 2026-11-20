@@ -177,3 +177,15 @@ fieldset.inline-roles { border: 0; padding: 0; margin: 0; display: inline-flex; 
 .ai-review { border-top: 1px solid var(--color-accent-soft); padding-top: var(--space-3); margin-top: var(--space-3); }
 .ai-review h3 small { font-weight: 400; color: var(--color-ink-soft); }
 .ai-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Pricing, credit and the legal pages (ADR 0026) */
+.legal { max-width: 72ch; }
+.legal h2 { margin-top: var(--space-4); }
+.legal .table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.legal .table th, .legal .table td, .credit .table th, .credit .table td {
+  text-align: left; vertical-align: top; padding: var(--space-2); border-bottom: 1px solid var(--color-accent-soft); }
+.credit .table { width: 100%; border-collapse: collapse; }
+.plans { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.plan .price { font-size: 1.5rem; font-weight: 800; margin: 0; }
+.packs { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.footer nav { margin-bottom: var(--space-1); }

@@ -1,0 +1,22 @@
+# 0026. Credit for AI reviews, sold through Paddle
+
+Status: accepted (step 2 of ADR 0025)
+
+## Context
+ADR 0025 let people ask AI models for reviews, free on Previewit's own server or with their own key, and showed a third price, *without a key*, that could not be chosen yet. The founder chose Paddle as merchant of record (Paddle sells to the buyer, collects and pays VAT and sales tax worldwide, and handles refunds and chargebacks), with prepaid **credit packs** in **euros** and a **30-day refund for any reason**. The founder sells as an individual for now: Paddle verifies individuals and sole traders without business verification, but reviews the website before it allows a checkout. That review needs a public product description, pricing, terms naming the seller and Paddle as merchant of record, a refund policy and a privacy notice, all linked from the site's navigation.
+
+## Decision
+- **Credit is euro cents, kept as entries.** A purchase adds; a refund takes back; an AI review *holds* the most it may cost and *releases* what it did not spend. The balance is the sum; each (kind, reference) counts once, so Paddle may repeat a notification safely. Credit belongs to the person, like their account, not to an organization: the rows carry `user_id`, not `org_id`.
+- **Packs, not per-request payments.** Paddle's fee (about 5% + $0.50) makes tiny purchases unprofitable. Packs are configured as Paddle price ids and whole euros (`[paddle] packs`), suggested €5, €10 and €25, tax included. One-time purchases: no subscription, nothing renews, credit does not expire.
+- **The price of an AI review in credit** is the service's cost in dollars × `usd_to_eur` × (1 + margin) × (1 + fees and tax), rounded up to a cent. Defaults: 1.00, 30% and 40%. The last covers VAT up to 27% and Paddle's fee, because pack prices include VAT. The page shows it before the person asks; credit is held for the most the review may cost and the rest comes back; a failed review costs nothing.
+- **Previewit's own keys.** A review paid with credit uses Previewit's key for that service, from a separate file (`[ai] keys_file`, readable by the service account only). A service without a key there needs the person's own key. Such reviews survive a restart: their key is in the configuration.
+- **Checkout with Paddle.js.** The Credit page opens Paddle's overlay checkout with the pack's price, the buyer's email and their user id as custom data. Paddle's script is fetched only on the Pricing and Credit pages, only from Paddle, and the Pricing page also opens Paddle payment links (`?_ptxn=`).
+- **Paddle's notifications** arrive at `POST /paddle/webhook`. The signature (`Paddle-Signature: ts=…;h1=…`, HMAC-SHA256 of `ts:raw body`) is checked against the raw bytes; notifications older than five minutes are refused. `transaction.completed` adds the packs bought; an approved refund adjustment takes back the refunded share, never more than the purchase added. Only ids are logged. This endpoint is the second machine interface after MCP (ADR 0023): it receives, it offers nothing.
+- **Public pages:** `/pricing`, `/terms`, `/refunds`, `/privacy`, `/contact`, linked from the footer of every page. Who sells comes from a new `[seller]` section, so a self-hosted Previewit names its own operator or shows that it has not. The terms include Paddle's merchant-of-record wording, rules for generative AI, an accuracy disclaimer and Finnish law. The refund policy is 30 days for any reason, through paddle.net or by email. The privacy notice covers what the GDPR asks: controller, data, purposes and legal bases, recipients (including the `processors` listed in the settings), transfers, retention, rights and cookies.
+
+## Consequences
+- The founder can apply to Paddle: create a sandbox account, fill in `[seller]` and `[paddle]`, then ask for domain review of peerview.it (see [the checklist](../business/paddle-application.md)).
+- 30-day refunds for any reason can return credit already spent; the balance then goes below zero and AI reviews from credit stop until it is topped up.
+- Two web workers may hold credit at the same moment without seeing each other's hold; the worst case is a small negative balance.
+- The legal pages are a starting point written without a lawyer. Have them checked before going live, and keep them true: the processors, the retention of server logs (90 days) and the seller's details.
+- Not yet: organizer plans for storage and shares (M8), invoices or receipts in Previewit (Paddle sends them), currencies other than euro for credit.

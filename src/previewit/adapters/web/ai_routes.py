@@ -26,6 +26,7 @@ from previewit.application.artifacts import ArtifactError, Upload
 from previewit.domain.ai_models import MAX_PER_REQUEST, ModelCard, Suggestion
 from previewit.domain.ai_reviews import AiReviewStatus
 from previewit.domain.calls import SubmissionId
+from previewit.domain.identity import UserId
 
 READ_LIMIT = 10_000_001
 CENT = Decimal("0.01")
@@ -41,7 +42,7 @@ def usd(value: Decimal | float | int) -> str:
     return f"${amount.quantize(CENT, rounding=ROUND_HALF_UP)}"
 
 
-def _keys(suggestions: Sequence[Suggestion]) -> list[dict[str, Any]]:
+def _keys(ai: AiReviewsService, suggestions: Sequence[Suggestion]) -> list[dict[str, Any]]:
     """One key field per service the listed models need, in the order they appear."""
     found: dict[str, dict[str, Any]] = {}
     for s in suggestions:
@@ -50,7 +51,13 @@ def _keys(suggestions: Sequence[Suggestion]) -> list[dict[str, Any]]:
             continue
         entry = found.setdefault(
             card.service,
-            {"service": card.service, "label": card.key_label, "url": card.key_url, "for": []},
+            {
+                "service": card.service,
+                "label": card.key_label,
+                "url": card.key_url,
+                "for": [],
+                "credit": ai.credit_for(card),  # the key is optional: credit can pay
+            },
         )
         entry["for"].append(card.name)
     return list(found.values())
@@ -64,11 +71,18 @@ async def choices_context(
     chosen: Sequence[str] = (),
     error: str | None = None,
     chars: int | None = None,
+    user_id: UserId | None = None,
 ) -> dict[str, Any]:
-    """What `_ai_choices.html` needs: three suggestions, the others, and the key fields."""
+    """What `_ai_choices.html` needs: three suggestions, the others, the key fields, and the
+    person's credit (ADR 0026)."""
+    credits = ai.credits
+    balance = None
+    if credits is not None and user_id is not None:
+        balance = await run_in_threadpool(credits.balance, user_id)
     context: dict[str, Any] = {
         "picks": [], "more": [], "keys_shown": [], "keys_more": [], "chosen": list(chosen),
         "exact": True, "ai_error": error, "max_ai": MAX_PER_REQUEST, "chars": chars,
+        "credit_on": credits is not None, "credit_models": set(), "balance": balance,
     }  # fmt: skip
     if chars is None:
         if upload is None:
@@ -86,12 +100,13 @@ async def choices_context(
         context["exact"] = exact
         context["chars"] = chars
     picks, more = await run_in_threadpool(ai.suggestions, chars)
-    shown = _keys(picks)
+    shown = _keys(ai, picks)
     context.update(
         picks=picks,
         more=more,
         keys_shown=shown,
-        keys_more=[k for k in _keys(more) if k["service"] not in {s["service"] for s in shown}],
+        keys_more=[k for k in _keys(ai, more) if k["service"] not in {s["service"] for s in shown}],
+        credit_models={s.card.key for s in picks + more if ai.credit_for(s.card)},
     )
     if not picks and not context["ai_error"]:
         context["ai_error"] = "No AI model on offer can read a work this long in one go."
@@ -149,8 +164,9 @@ def build_ai_router(*, ai: AiReviewsService, kit: WebKit, visitors: RateLimiter)
             return kit.render(request, "_ai_choices.html", context, 429)
         upload = await upload_from(form)
         context = await choices_context(
-            ai, upload, read_pages=user is not None, chosen=kit.texts(form, "ai_model")
-        )
+            ai, upload, read_pages=user is not None, chosen=kit.texts(form, "ai_model"),
+            user_id=user.id if user is not None else None,
+        )  # fmt: skip
         return kit.render(request, "_ai_choices.html", context)
 
     # -- on a Submission's page ----------------------------------------------------------------
@@ -190,7 +206,7 @@ def build_ai_router(*, ai: AiReviewsService, kit: WebKit, visitors: RateLimiter)
         except InvalidAiRequest as problem:
             return await choices_context(ai, None, read_pages=True, error=str(problem))
         return await choices_context(
-            ai, None, read_pages=True, chosen=chosen, error=error, chars=chars
+            ai, None, read_pages=True, chosen=chosen, error=error, chars=chars, user_id=user.id
         )
 
     @router.get("/submissions/{submission_id}/ai/ask", response_class=HTMLResponse)

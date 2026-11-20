@@ -35,6 +35,7 @@ class Payer(StrEnum):
 
     FREE = "free"  # a model on Previewit's own server
     OWN_KEY = "own_key"  # the person's own key, used for this one request and never kept
+    CREDIT = "credit"  # Previewit's key, paid from the person's credit (ADR 0026)
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,7 @@ class AiReview:
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: Decimal = Decimal(0)  # what the model's service charged
+    credit_cents: int = 0  # paid with credit: held while written, then what it took
 
     @property
     def finished(self) -> bool:
@@ -89,4 +91,5 @@ class AiReview:
             status=AiReviewStatus.FAILED,
             finished_at=at,
             problem=(problem.strip() or "The model could not write the review.")[:MAX_PROBLEM],
+            credit_cents=0,  # a failed review costs nothing
         )

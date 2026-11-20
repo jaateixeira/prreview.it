@@ -1,5 +1,6 @@
 import os
 import socket
+import tempfile
 import threading
 import time
 
@@ -78,6 +79,14 @@ def _catalogue(settings: Settings) -> tuple[dict[str, Service], Catalogue]:
     return services, Catalogue(cards, local)
 
 
+PADDLE_SECRET = "pdl_ntfset_acceptance"  # Paddle's notifications are signed with it (ADR 0026)
+
+
+@pytest.fixture(scope="session")
+def paddle_secret() -> str:
+    return PADDLE_SECRET
+
+
 @pytest.fixture(scope="session")
 def writer() -> Writer:
     return WRITER
@@ -105,6 +114,20 @@ def base_url():
     os.environ["PREVIEWIT_BASE_URL"] = f"http://127.0.0.1:{port}"
     # The same server under a second name, to show that an alias leads to the main address.
     os.environ["PREVIEWIT_ALIASES"] = f"http://localhost:{port}"
+    # Selling credit through Paddle's sandbox, and who sells it (ADR 0026).
+    keys = tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False)  # noqa: SIM115
+    keys.write('anthropic = "sk-ant-acceptance-house-key"\n')
+    keys.close()
+    os.chmod(keys.name, 0o600)
+    os.environ.update({
+        "PREVIEWIT_AI_KEYS_FILE": keys.name,
+        "PREVIEWIT_PADDLE_CLIENT_TOKEN": "test_acceptance",
+        "PREVIEWIT_PADDLE_WEBHOOK_SECRET": PADDLE_SECRET,
+        "PREVIEWIT_PADDLE_PACKS": "pri_5:5,pri_10:10,pri_25:25",
+        "PREVIEWIT_SELLER_LEGAL_NAME": "Sam Seller",
+        "PREVIEWIT_SELLER_ADDRESS": "Testikatu 1, 40100 Jyväskylä, Finland",
+        "PREVIEWIT_SELLER_EMAIL": "hello@example.org",
+    })  # fmt: skip
     server = uvicorn.Server(
         uvicorn.Config(create_app(), host="127.0.0.1", port=port, log_level="warning")
     )

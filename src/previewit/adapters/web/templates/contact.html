@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack legal">
+  <h1>Contact</h1>
+  {% include "_seller_missing.html" %}
+  <p>Previewit at {{ site_host }} is run by:</p>
+  {% include "_seller_lines.html" %}
+  <h2>Payments and refunds</h2>
+  <p>Paddle.com, our reseller and Merchant of Record, handles payments and refunds: see
+    <a href="https://paddle.net">paddle.net</a> or write to us.</p>
+  <h2>Privacy</h2>
+  <p>{% if seller.privacy_email %}<a href="mailto:{{ seller.privacy_email }}">{{ seller.privacy_email }}</a>{% else %}[privacy contact not set]{% endif %}.
+    See the <a href="/privacy">privacy notice</a>.</p>
+  <h2>Source code</h2>
+  <p>Previewit is open source: <a href="{{ source_url }}">{{ source_url }}</a>.</p>
+</section>
+{% endblock %}

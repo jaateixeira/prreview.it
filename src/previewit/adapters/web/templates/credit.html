@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack credit">
+  <h1>Credit</h1>
+  {% if bought %}<p class="notice" role="status">Thank you. Your credit appears here as soon as
+    Paddle confirms the payment, usually within a minute. Reload the page to see it.</p>{% endif %}
+  <p class="lead">You have <strong>{{ balance | euros }}</strong> of credit.</p>
+  <p>Credit pays for AI reviews when you do not give a key of your own. Before you ask, the
+    form shows what each review takes from it. See <a href="/pricing">Pricing</a>.</p>
+
+  {% if checkout and packs %}
+  <div class="card" id="credit-buy" data-user="{{ buyer.id }}" data-email="{{ buyer.email.value if buyer.email else '' }}" data-success="{{ success_url }}">
+    <h2>Buy credit</h2>
+    <p class="actions">
+      {% for pack in packs %}<button class="btn" type="button" data-price="{{ pack.price_id }}">Buy €{{ pack.whole_euros }}</button> {% endfor %}
+    </p>
+    <p class="hint">Paddle.com, our reseller and Merchant of Record, takes the payment and adds
+      VAT where it applies. By buying you accept our <a href="/terms">terms</a> and
+      <a href="/refunds">refund policy</a>: a full refund within 30 days, for any reason.</p>
+  </div>
+  <div id="paddle-config" hidden data-token="{{ checkout.token }}" data-environment="{{ checkout.environment }}"></div>
+  <script src="{{ url_for('static', path='js/credit.js') }}"></script>
+  {% else %}
+  <p class="notice" role="status">Buying credit is not open on this site yet.</p>
+  {% endif %}
+
+  <h2>History</h2>
+  {% if history %}
+  <table class="table">
+    <thead><tr><th>When</th><th>What</th><th>Amount</th></tr></thead>
+    <tbody>
+      {% for e in history %}
+      <tr><td>{{ e.created_at | when }}</td>
+        <td>{% if e.kind == 'purchase' %}Bought ({{ e.reference }})
+          {% elif e.kind == 'refund' %}Refunded ({{ e.related }})
+          {% elif e.kind == 'hold' %}Held for an AI review
+          {% else %}Given back after an AI review{% endif %}</td>
+        <td>{{ e.amount_cents | euros }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>Nothing yet.</p>
+  {% endif %}
+</section>
+{% endblock %}

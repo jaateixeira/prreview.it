@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack legal">
+  <h1>Privacy notice</h1>
+  <p><small>Last updated {{ updated }}.</small></p>
+  {% include "_seller_missing.html" %}
+
+  <h2>Who is responsible</h2>
+  <p>The controller of your personal data is {{ seller.legal_name or "[legal name not set]" }}{% if seller.trading_name %},
+    trading as {{ seller.trading_name }}{% endif %}, {{ seller.address or "[address not set]" }}. Privacy questions and
+    requests: {% if seller.privacy_email %}<a href="mailto:{{ seller.privacy_email }}">{{ seller.privacy_email }}</a>{% else %}[privacy contact not set]{% endif %}.</p>
+
+  <h2>What we collect, why, and on what legal basis</h2>
+  <table class="table">
+    <thead><tr><th>Data</th><th>Why</th><th>Legal basis (GDPR)</th></tr></thead>
+    <tbody>
+      <tr><td>Account: name, email address, a hash of your password, or the ID your Google, Apple
+        or HAKA login gives us</td><td>To give you an account and sign you in</td><td>Contract (art. 6(1)(b))</td></tr>
+      <tr><td>Your work, your reviews, comments and AI reviews; the review spaces, calls and
+        rounds you take part in</td><td>To run the reviews you ask for</td><td>Contract</td></tr>
+      <tr><td>Reviewers' email addresses that you give us, and the invitations we send</td>
+        <td>To invite them in your name</td><td>Your legitimate interest and ours in running the review you organize (art. 6(1)(f))</td></tr>
+      <tr><td>Work you send to AI models</td><td>To get the AI reviews you ask for. Your own key is
+        used for that one request and never stored</td><td>Contract, at your request</td></tr>
+      <tr><td>Credit and purchases: what you bought, refunds, what your AI reviews took, Paddle's
+        transaction IDs</td><td>To keep your credit right, and our books</td><td>Contract; legal obligation for bookkeeping (art. 6(1)(c))</td></tr>
+      <tr><td>Technical data: IP address, browser, the pages asked for, in our server logs</td>
+        <td>To keep Previewit secure and working, and to stop abuse</td><td>Legitimate interest</td></tr>
+    </tbody>
+  </table>
+  <p>We do not sell your data, show advertising, or use your work to train AI models.</p>
+
+  <h2>Who receives it</h2>
+  <ul>
+    {% for line in seller.processors %}<li>{{ line }}</li>{% endfor %}
+    <li>Paddle.com, our reseller and Merchant of Record, when you buy credit: Paddle collects your
+      payment details itself, as a separate controller, under its own privacy notice. We receive
+      your name, email, country and what you bought, never your card.</li>
+    <li>The AI services you choose for an AI review (Anthropic, OpenAI, Google, Mistral, xAI,
+      DeepSeek or Hugging Face's partners): the work and a few words of instructions, on your
+      request. Each model shows the country where it runs. Free models run on our own server.</li>
+    <li>Google, Apple or HAKA, if you sign in with them.</li>
+    <li>Our professional advisers (such as an accountant) and authorities, when the law requires it.</li>
+  </ul>
+
+  <h2>Outside the European Economic Area</h2>
+  <p>Some AI services and Paddle work outside the EEA, for example in the United States. Data goes
+    there under an adequacy decision of the European Commission (such as the EU–US Data Privacy
+    Framework) or the European Commission's standard contractual clauses. When you choose a model
+    that runs in a country without either, such as China, your work goes there only because you
+    chose it and asked for that review.</p>
+
+  <h2>How long we keep it</h2>
+  <ul>
+    <li>Your account: until you ask us to delete it.</li>
+    <li>Work, reviews and AI reviews: as long as the review space they belong to keeps them, or
+      until your account is deleted.</li>
+    <li>A form filled in before signing in: one hour. A request prepared by an AI assistant: seven days.</li>
+    <li>Purchases and credit history: as long as Finnish accounting law requires, up to ten years.</li>
+    <li>Server logs: at most 90 days.</li>
+  </ul>
+
+  <h2>Your rights</h2>
+  <p>You have the right to access your data, have it corrected, have it erased, restrict its use,
+    receive it in a portable form, object to its use, and withdraw any consent you gave. Write to
+    the privacy contact above; we answer within one month. You may also complain to a
+    supervisory authority; in Finland it is the Data Protection Ombudsman (tietosuojavaltuutettu,
+    <a href="https://tietosuoja.fi">tietosuoja.fi</a>).</p>
+
+  <h2>Security</h2>
+  <p>Previewit is served over HTTPS only. Passwords are stored as Argon2 hashes, never as they
+    were typed. Keys you give for AI models are never stored. Access to the servers and the
+    database is limited to the people who run them.</p>
+
+  <h2>Cookies</h2>
+  <p>Previewit sets only the cookies it needs to work, so it asks for no consent:</p>
+  <ul>
+    <li><code>pv_session</code>: keeps you signed in, for up to 14 days.</li>
+    <li><code>pv_csrf</code>: protects the forms you send from other sites.</li>
+    <li><code>pv_flow</code>: for ten minutes while you sign in with Google, Apple or HAKA.</li>
+  </ul>
+  <p>When you open Paddle's checkout to buy credit, Paddle sets its own cookies under its privacy
+    notice. Previewit has no tracking or advertising cookies.</p>
+</section>
+{% endblock %}

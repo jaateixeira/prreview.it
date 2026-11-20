@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="stack legal pricing">
+  <h1>Pricing</h1>
+  <p class="lead">Peer review on Previewit is free. You pay only if you want AI models to review
+    your work and do not bring a key of your own.</p>
+
+  <div class="plans">
+    <div class="card plan">
+      <h2>Peer review</h2>
+      <p class="price">Free</p>
+      <ul>
+        <li>Request reviews of a PDF, a text or a web page, in a few minutes</li>
+        <li>Invite reviewers by link: they never need to pay, or even to sign up</li>
+        <li>Review spaces, calls for authors, review rounds and rubrics for organizers</li>
+        <li>Anonymous reviews when you want them</li>
+      </ul>
+    </div>
+    {% if ai_on %}
+    <div class="card plan">
+      <h2>AI reviews</h2>
+      <p class="price">Free or pay as you go</p>
+      <ul>
+        <li><strong>Free models</strong> that Previewit runs on its own server: {{ free_ai_per_day }} reviews a day</li>
+        <li><strong>Your own key</strong> for Anthropic, OpenAI, Google, Mistral, xAI, DeepSeek or
+          Hugging Face: Previewit charges nothing; the model's service bills you directly</li>
+        <li><strong>Credit</strong>: buy a pack once and pay for each AI review from it, with no key</li>
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if ai_on %}
+  <h2>Credit packs</h2>
+  {% if packs %}
+  <ul class="packs">
+    {% for pack in packs %}<li class="card pack"><strong>€{{ pack.whole_euros }}</strong> of credit for €{{ pack.whole_euros }}</li>{% endfor %}
+  </ul>
+  <p>Prices include VAT where it applies. One-time purchases: no subscription and nothing
+    renews. Credit does not expire. You can get a full refund within 30 days for any reason
+    (see the <a href="/refunds">refund policy</a>). <a href="/credit">Buy credit</a> once you
+    are signed in.</p>
+  {% else %}
+  <p>Credit packs of €5, €10 and €25 open soon. Until then, use the free models or your own key.</p>
+  {% endif %}
+
+  {% if examples %}
+  <h2>What one AI review costs</h2>
+  <p>For a work of about 5,000 words. Before you ask, Previewit shows the price for your own
+    work, and while the review is written it holds the most it may cost, then gives back what
+    was not used. A review that fails costs nothing.</p>
+  <table class="table">
+    <thead><tr><th>Model</th><th>Runs at</th><th>From your credit, about</th></tr></thead>
+    <tbody>
+      {% for card, cost in examples %}
+      <tr><td>{{ card.name }} <small>by {{ card.maker }}</small></td>
+        <td><span aria-hidden="true">{{ card.flag }}</span> {{ card.hosting }}</td>
+        <td>{% if cost.free %}Free{% else %}{{ cost.credit_cents | euros }}{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% endif %}
+
+  <h2>Who sells</h2>
+  {% include "_seller_lines.html" %}
+  <p>Our order process is conducted by our online reseller Paddle.com. Paddle.com is the
+    Merchant of Record for all our orders. Paddle provides all customer service inquiries and
+    handles returns.</p>
+  <p><a href="/terms">Terms</a> · <a href="/refunds">Refund policy</a> · <a href="/privacy">Privacy notice</a></p>
+  {% if checkout %}<div id="paddle-config" hidden data-token="{{ checkout.token }}" data-environment="{{ checkout.environment }}"></div>
+  <script src="{{ url_for('static', path='js/credit.js') }}"></script>{% endif %}
+</section>
+{% endblock %}

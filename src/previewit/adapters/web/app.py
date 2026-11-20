@@ -18,6 +18,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from previewit.adapters.auth.base import ExternalProvider
 from previewit.adapters.mcp import McpServer
+from previewit.adapters.payments.paddle import PaddleNotifications
 from previewit.adapters.settings import Settings
 from previewit.adapters.web import local_time
 from previewit.adapters.web.ai_routes import build_ai_router, usd
@@ -28,6 +29,7 @@ from previewit.adapters.web.invitations_routes import build_invitations_router
 from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.limits import RateLimiter
 from previewit.adapters.web.mcp_routes import build_mcp_router
+from previewit.adapters.web.money_routes import Seller, build_money_router, paddle_checkout
 from previewit.adapters.web.pages_routes import build_pages_router
 from previewit.adapters.web.quick_review_routes import build_quick_review_router
 from previewit.adapters.web.reviews_routes import build_reviews_router
@@ -38,6 +40,7 @@ from previewit.adapters.web.tenancy_routes import LoginRequired, build_tenancy_r
 from previewit.application.ai_reviews import AiReviewsService
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService, InvalidShare
+from previewit.application.credits import CreditsService
 from previewit.application.invitations import (
     InvalidInvitationLink,
     InvitationsService,
@@ -58,6 +61,7 @@ from previewit.application.tenancy import (
 from previewit.application.verification import VerificationService
 from previewit.application.web_pages import PageChecker
 from previewit.domain.ai_models import flag
+from previewit.domain.credits import euros
 from previewit.domain.identity import Provider
 
 HERE = Path(__file__).parent
@@ -97,6 +101,7 @@ def build_app(
     prepared: PreparedRequestsService,
     version: str = "dev",
     ai: AiReviewsService | None = None,
+    credits: CreditsService | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -113,6 +118,8 @@ def build_app(
     templates.env.globals["ai_on"] = ai is not None  # AI reviews (ADR 0025)
     templates.env.globals["flag"] = flag
     templates.env.filters["usd"] = usd
+    templates.env.filters["euros"] = euros
+    templates.env.globals["seller"] = Seller.from_settings(settings)  # ADR 0026
     local_time.install(templates.env)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     codec = SessionCodec(settings.secret_key)
@@ -204,6 +211,17 @@ def build_app(
         app.include_router(
             build_ai_router(ai=ai, kit=kit, visitors=RateLimiter(20, 600))  # per client address
         )
+    checkout = paddle_checkout(settings)
+    secret = settings.paddle_webhook_secret
+    app.include_router(
+        build_money_router(
+            kit=kit,
+            credits=credits,
+            ai=ai,
+            notifications=PaddleNotifications(credits, secret) if credits and secret else None,
+            checkout=checkout,
+        )
+    )
     mcp = McpServer(
         prepared=prepared,
         origin=settings.origin,

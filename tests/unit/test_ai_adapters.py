@@ -21,7 +21,7 @@ from previewit.adapters.ai.catalog import (
 )
 from previewit.adapters.ai.jobs import ThreadedAiJobs
 from previewit.adapters.ai.writers import HttpAiWriter
-from previewit.application.ai_reviews import AiPrompt, AiServiceError
+from previewit.application.ai_reviews import DEFAULT_PRICING, AiPrompt, AiServiceError
 from previewit.domain.ai_models import MAX_LISTED, ModelCard, suggest
 from previewit.domain.ai_reviews import AiReviewId
 
@@ -46,7 +46,7 @@ def test_the_catalogue_file_is_complete_and_recent() -> None:
 
 def test_an_essay_gets_three_suggestions_from_three_makers() -> None:
     _, cards = load_catalogue()
-    picks, more = suggest(cards, 30_000, Decimal("0.3"))
+    picks, more = suggest(cards, 30_000, DEFAULT_PRICING)
     assert len(picks) == 3 and len({p.card.maker for p in picks}) == 3
     assert picks[0].card.tier == 3
     assert len(picks) + len(more) == len(cards)

@@ -1,6 +1,6 @@
 # 0025. AI reviews: ask AI models to review a work, alongside people
 
-Status: accepted (step 1 of 2: payments come with the plans, M8)
+Status: accepted (step 1 of 2; step 2, paying from credit, is [ADR 0026](0026-credit-and-paddle.md))
 
 ## Context
 People who request a review wait days for their reviewers. AI models can read the same work in minutes and give a first round of feedback. The founder asked for this as a core feature: when someone requests a review, Previewit asks whether they want AI models suggested for their work; if they say yes, it suggests up to three that could review it, shows what each would cost with and without their own key, and lets them give a key to pay less.

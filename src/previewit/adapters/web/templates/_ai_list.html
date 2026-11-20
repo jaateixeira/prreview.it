@@ -6,7 +6,8 @@
     {% if r.status == 'done' %}
     <div class="ai-text">{{ r.text }}</div>
     <p><small>Written {{ r.finished_at | when }} about revision {{ r.revision }}{% if r.payer == 'own_key' %},
-      for about {{ r.cost_usd | usd }} on the key you gave{% endif %}. AI models make mistakes: weigh
+      for about {{ r.cost_usd | usd }} on the key you gave{% elif r.payer == 'credit' %},
+      for {{ r.credit_cents | euros }} from your credit{% endif %}. AI models make mistakes: weigh
       this as one reader's view.</small></p>
     {% elif r.status == 'failed' %}
     <p class="error">{{ r.problem }}</p>

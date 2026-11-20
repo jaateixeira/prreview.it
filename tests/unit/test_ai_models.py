@@ -20,8 +20,9 @@ from previewit.domain.ai_models import (
     suggest,
     tokens_for,
 )
+from previewit.domain.credits import CreditPricing
 
-MARGIN = Decimal("0.30")
+MARGIN = CreditPricing(usd_to_eur=Decimal(1), margin=Decimal("0.30"), fees_and_tax=Decimal(0))
 
 
 def card(key: str, **changes: object) -> ModelCard:
@@ -95,14 +96,16 @@ def test_an_estimate_prices_reading_and_writing() -> None:
     # 10,000 tokens read at $2/M, 2,500 written at $10/M: $0.02 + $0.025
     assert found.own_key_usd == Decimal("0.045")
     assert found.at_most_usd == Decimal("0.06")  # 4,000 written at most
-    assert found.previewit_usd == Decimal("0.0585")  # 30% on top
+    assert found.credit_cents == 6  # 30% on top, in cents rounded up: 5.85
+    assert found.credit_at_most_cents == 8  # 7.8
     assert not found.free
 
 
 def test_a_free_model_costs_nothing_either_way() -> None:
     found = estimate(LOCAL, 5_000, MARGIN)
     assert found.free
-    assert found.own_key_usd == found.previewit_usd == found.at_most_usd == 0
+    assert found.own_key_usd == found.at_most_usd == 0
+    assert found.credit_cents == found.credit_at_most_cents == 0
 
 
 def test_the_cost_of_a_finished_review_uses_the_real_tokens() -> None:
@@ -114,7 +117,8 @@ def test_the_cost_of_a_finished_review_uses_the_real_tokens() -> None:
 def test_more_reading_never_costs_less(a: int, b: int) -> None:
     low, high = sorted((a, b))
     assert estimate(STRONG, low, MARGIN).own_key_usd <= estimate(STRONG, high, MARGIN).own_key_usd
-    assert estimate(STRONG, low, MARGIN).previewit_usd >= estimate(STRONG, low, MARGIN).own_key_usd
+    found = estimate(STRONG, low, MARGIN)
+    assert found.credit_cents >= found.own_key_usd * 100
 
 
 # -- suggestions -------------------------------------------------------------------------------

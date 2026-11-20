@@ -278,3 +278,60 @@ def test_ai_settings_of_the_wrong_kind_are_errors(tmp_path: Path):
             load_settings({"PREVIEWIT_CONFIG": str(write(tmp_path, text))})
     with pytest.raises(ConfigError, match="AI_MARGIN_PERCENT"):
         load_settings({"PREVIEWIT_AI_MARGIN_PERCENT": "-5"}, search=[])
+
+
+def test_the_seller_and_paddle_sections(tmp_path: Path):  # ADR 0026
+    (tmp_path / "webhook.secret").write_text("pdl_ntfset_secret\n")
+    (tmp_path / "ai-keys.toml").write_text('anthropic = "sk-x"\n')
+    path = write(
+        tmp_path,
+        """
+        [seller]
+        legal_name = "José Teixeira"
+        address = "Jyväskylä, Finland"
+        email = "hello@peerview.it"
+        phone = "+358 40 000 0000"
+        processors = ["Brevo SAS, France: sends emails", "a | b"]
+
+        [paddle]
+        environment = "sandbox"
+        client_token = "test_abc123"
+        webhook_secret_file = "webhook.secret"
+        packs = { pri_01five = 5, pri_01ten = 10 }
+
+        [ai]
+        usd_to_eur = "0.92"
+        fees_and_tax_percent = 35
+        keys_file = "ai-keys.toml"
+        """,
+    )
+    s = load_settings({"PREVIEWIT_CONFIG": str(path)})
+    assert (s.seller_legal_name, s.seller_trading_name) == ("José Teixeira", "Previewit")
+    assert s.seller_phone == "+358 40 000 0000" and s.seller_business_id is None
+    assert s.seller_processors == ("Brevo SAS, France: sends emails", "a / b")
+    assert (s.paddle_environment, s.paddle_client_token) == ("sandbox", "test_abc123")
+    assert s.paddle_webhook_secret == "pdl_ntfset_secret"
+    assert s.paddle_packs == (("pri_01five", 5), ("pri_01ten", 10))
+    assert (s.ai_usd_to_eur, s.ai_fees_and_tax_percent) == ("0.92", 35)
+    assert s.ai_keys_file == str(tmp_path / "ai-keys.toml")
+
+
+def test_paddle_settings_that_cannot_work_are_errors(tmp_path: Path):
+    for env, reason in [
+        ({"PREVIEWIT_PADDLE_ENVIRONMENT": "live"}, "sandbox or production"),
+        ({"PREVIEWIT_PADDLE_CLIENT_TOKEN": "live_x"}, "starts with test_"),
+        (
+            {
+                "PREVIEWIT_PADDLE_ENVIRONMENT": "production",
+                "PREVIEWIT_PADDLE_CLIENT_TOKEN": "test_x",
+            },
+            "starts with live_",
+        ),
+        ({"PREVIEWIT_PADDLE_PACKS": "pri_a:five"}, "pri_...:euros"),
+        ({"PREVIEWIT_AI_USD_TO_EUR": "lots"}, "number"),
+    ]:
+        with pytest.raises(ConfigError, match=reason):
+            load_settings(env, search=[])
+    bad = write(tmp_path, '[paddle]\npacks = ["pri_a"]\n')
+    with pytest.raises(ConfigError, match="price ids to whole euros"):
+        load_settings({"PREVIEWIT_CONFIG": str(bad)})

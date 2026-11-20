@@ -9,8 +9,9 @@
     {% if s.estimate.free %}<strong>Free</strong>
     {% else %}{% set about, most = s.estimate.own_key_usd | usd, s.estimate.at_most_usd | usd %}
       With your {{ s.card.key_label }}: <strong>about {{ about }}</strong>
-      {% if most != about %}<small>(at most {{ most }})</small>{% endif %}<br>
-      Without a key: about {{ s.estimate.previewit_usd | usd }} <small>(paying through Previewit opens soon)</small>
+      {% if most != about %}<small>(at most {{ most }})</small>{% endif %}
+      {% if credit_on %}<br>{% if s.card.key in credit_models %}Without a key: <strong>about {{ s.estimate.credit_cents | euros }}</strong> from your credit
+      {% else %}<small>Needs your key: Previewit cannot pay for this one.</small>{% endif %}{% endif %}
     {% endif %}
   </p>
 </li>

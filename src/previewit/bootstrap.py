@@ -14,6 +14,7 @@ from loguru import logger
 
 from previewit.adapters.ai.catalog import Catalogue, LocalModels, Service, load_catalogue
 from previewit.adapters.ai.jobs import ThreadedAiJobs
+from previewit.adapters.ai.keys import load_house_keys
 from previewit.adapters.ai.writers import HttpAiWriter
 from previewit.adapters.auth.passwords import Argon2Hasher
 from previewit.adapters.auth.registry import build_providers
@@ -32,6 +33,7 @@ from previewit.adapters.persistence.sql import (
 )
 from previewit.adapters.persistence.sql_ai_reviews import SqlAiReviewRepository
 from previewit.adapters.persistence.sql_calls import SqlCallRepository
+from previewit.adapters.persistence.sql_credits import SqlCreditRepository
 from previewit.adapters.persistence.sql_prepared import SqlPreparedRequestRepository
 from previewit.adapters.persistence.sql_reviews import SqlReviewRepository
 from previewit.adapters.persistence.sql_rounds import SqlRoundRepository
@@ -49,6 +51,7 @@ from previewit.application.allocation import StrategyRegistry
 from previewit.application.artifacts import ArtifactRegistry, PluginServices, connect_plugins
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService
+from previewit.application.credits import CreditsService
 from previewit.application.criteria import CriterionRegistry
 from previewit.application.invitations import InvitationsService
 from previewit.application.ports import Mailer
@@ -60,6 +63,7 @@ from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
 from previewit.application.web_pages import PageChecker, PageReader
+from previewit.domain.credits import CreditPack, CreditPricing
 
 
 def create_app() -> FastAPI:
@@ -175,6 +179,21 @@ def create_app() -> FastAPI:
         lambda: datetime.now(UTC),
     )
     ai = None
+    credits = CreditsService(  # ADR 0026: bought through Paddle, spent on AI reviews
+        SqlCreditRepository(engine),
+        users,
+        [CreditPack(price, whole_euros) for price, whole_euros in settings.paddle_packs],
+        ids=lambda: uuid.uuid4().hex,
+        now=lambda: datetime.now(UTC),
+    )
+    if settings.paddle_client_token and settings.paddle_webhook_secret:
+        logger.info(
+            "Credit: sold through Paddle ({}), {} packs",
+            settings.paddle_environment,
+            len(settings.paddle_packs),
+        )
+        if not (settings.seller_legal_name and settings.seller_address and settings.seller_email):
+            logger.warning("Fill in [seller]: Paddle's review reads the seller on /terms")
     if settings.ai_enabled:
         services, catalogue = build_ai_catalogue(settings)
         jobs = ThreadedAiJobs()
@@ -191,7 +210,13 @@ def create_app() -> FastAPI:
             base_url=settings.base_url,
             ids=lambda: uuid.uuid4().hex,
             now=lambda: datetime.now(UTC),
-            margin=Decimal(settings.ai_margin_percent) / 100,
+            pricing=CreditPricing(
+                usd_to_eur=Decimal(settings.ai_usd_to_eur),
+                margin=Decimal(settings.ai_margin_percent) / 100,
+                fees_and_tax=Decimal(settings.ai_fees_and_tax_percent) / 100,
+            ),
+            credits=credits,
+            house_keys=load_house_keys(settings.ai_keys_file, set(services)),
         )
         jobs.bind(ai.run)
         ai.recover()  # what was queued when Previewit stopped
@@ -232,6 +257,7 @@ def create_app() -> FastAPI:
         ),
         version=_version(),
         ai=ai,
+        credits=credits,
     )
 
 
