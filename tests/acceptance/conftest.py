@@ -3,13 +3,18 @@ import socket
 import threading
 import time
 
+import httpx
 import pytest
 import uvicorn
 from tests.unit.test_webpage_plugin import FakePageChecker
 
 import previewit.bootstrap as bootstrap
+from previewit.adapters.ai.catalog import Catalogue, LocalModels, Service, load_catalogue
+from previewit.adapters.settings import Settings
+from previewit.application.ai_reviews import AiAnswer, AiPrompt
 from previewit.application.web_pages import PageCheck
 from previewit.bootstrap import create_app
+from previewit.domain.ai_models import ModelCard
 
 
 class Outbox:
@@ -45,6 +50,39 @@ PAGES = FakePageChecker(
 )
 
 
+class Writer:
+    """Plays every AI model (ADR 0025): answers at once, never leaves this machine."""
+
+    def __init__(self) -> None:
+        self.asked: list[tuple[str, str]] = []
+
+    def write(self, card: ModelCard, key: str, prompt: AiPrompt) -> AiAnswer:
+        self.asked.append((card.key, key))
+        return AiAnswer(
+            "Summary\nA thoughtful essay.\n\nWhat to improve\nGive one more example.", 900, 40
+        )
+
+
+WRITER = Writer()
+
+
+def _catalogue(settings: Settings) -> tuple[dict[str, Service], Catalogue]:
+    """The real catalogue, plus one free model on a pretend Ollama server."""
+    services, cards = load_catalogue()
+    ollama = httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"models": [{"name": "qwen3:8b"}]})
+    )
+    local = LocalModels(
+        "http://ollama.test:11434", place="Finland", country="FI", context=8192, transport=ollama
+    )
+    return services, Catalogue(cards, local)
+
+
+@pytest.fixture(scope="session")
+def writer() -> Writer:
+    return WRITER
+
+
 @pytest.fixture(scope="session")
 def outbox() -> Outbox:
     return OUTBOX
@@ -61,6 +99,8 @@ def base_url():
     port = _free_port()
     bootstrap.build_mailer = lambda _settings: OUTBOX  # type: ignore[assignment]
     bootstrap.build_page_checker = lambda _settings: PAGES  # type: ignore[assignment]
+    bootstrap.build_ai_catalogue = _catalogue  # type: ignore[assignment]
+    bootstrap.build_ai_writer = lambda _settings, _services: WRITER  # type: ignore[assignment]
     # The app checks the Origin header of form posts against its own base URL.
     os.environ["PREVIEWIT_BASE_URL"] = f"http://127.0.0.1:{port}"
     # The same server under a second name, to show that an alias leads to the main address.

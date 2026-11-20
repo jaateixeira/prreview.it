@@ -1,0 +1,370 @@
+# The AI models Previewit offers for AI reviews (ADR 0025).
+#
+# Prices are US dollars per million tokens, copied from each service's own price page on the
+# date in `checked`. Prices change often: check them every month and before any change to
+# what Previewit charges. Models are listed in this order under "See more"; free models on
+# Previewit's own server come first, and the suggestion rules pick three (domain/ai_models.py).
+#
+# context:        the most tokens the model reads and writes in one go AT THE PRICE GIVEN
+#                 (several services charge more for very long prompts; we stay below that)
+# max_output:     the most it may write, thinking included
+# typical_output: what a review usually takes, thinking included; used for "about" prices
+# tier:           3 among the strongest, 2 strong, 1 light
+# hosted_in:      ISO 3166 country code of where the service runs it; "" when it varies
+
+# -- the services: who runs the models and takes the key ----------------------------------------
+
+[services.anthropic]
+name = "Anthropic"
+api = "anthropic"
+url = "https://api.anthropic.com/v1/messages"
+key_label = "Anthropic API key"
+key_url = "https://console.anthropic.com/settings/keys"
+hosted_in = "US"
+hosting = "Anthropic, USA"
+prices = "https://docs.claude.com/en/docs/about-claude/pricing"
+
+[services.openai]
+name = "OpenAI"
+api = "openai"
+url = "https://api.openai.com/v1/chat/completions"
+max_tokens_field = "max_completion_tokens"
+key_label = "OpenAI API key"
+key_url = "https://platform.openai.com/api-keys"
+hosted_in = "US"
+hosting = "OpenAI, USA"
+prices = "https://developers.openai.com/api/docs/pricing"
+
+[services.google]
+name = "Google"
+api = "openai"
+url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+key_label = "Gemini API key"
+key_url = "https://aistudio.google.com/apikey"
+hosted_in = "US"
+hosting = "Google, USA"
+prices = "https://ai.google.dev/gemini-api/docs/pricing"
+
+[services.mistral]
+name = "Mistral AI"
+api = "openai"
+url = "https://api.mistral.ai/v1/chat/completions"
+key_label = "Mistral API key"
+key_url = "https://console.mistral.ai/api-keys"
+hosted_in = "FR"
+hosting = "Mistral AI, France"
+prices = "https://mistral.ai/pricing"
+
+[services.xai]
+name = "xAI"
+api = "openai"
+url = "https://api.x.ai/v1/chat/completions"
+key_label = "xAI API key"
+key_url = "https://console.x.ai"
+hosted_in = "US"
+hosting = "xAI, USA"
+prices = "https://docs.x.ai/docs/pricing"
+
+[services.deepseek]
+name = "DeepSeek"
+api = "openai"
+url = "https://api.deepseek.com/chat/completions"
+key_label = "DeepSeek API key"
+key_url = "https://platform.deepseek.com/api_keys"
+hosted_in = "CN"
+hosting = "DeepSeek, China"
+prices = "https://api-docs.deepseek.com/quick_start/pricing"
+
+[services.huggingface]
+name = "Hugging Face"
+api = "openai"
+url = "https://router.huggingface.co/v1/chat/completions"
+key_label = "Hugging Face token"
+key_url = "https://huggingface.co/settings/tokens"
+hosted_in = ""
+hosting = "Hugging Face's partners (the cheapest one at the time)"
+prices = "https://huggingface.co/inference/models"
+
+# -- the models ----------------------------------------------------------------------------------
+
+[[models]]
+key = "anthropic/claude-sonnet-5-5"
+service = "anthropic"
+name = "Claude Sonnet 5.5"
+maker = "Anthropic"
+model = "claude-sonnet-5-5"
+input = "2.00"
+output = "10.00"
+context = 100_000
+max_output = 4_000
+typical_output = 2_500
+tier = 3
+checked = 2026-11-20
+
+[[models]]
+key = "openai/gpt-6.1-sol"
+service = "openai"
+name = "GPT-6.1 Sol"
+maker = "OpenAI"
+model = "gpt-6.1-sol"
+input = "2.00"
+output = "10.00"
+context = 272_000
+max_output = 12_000
+typical_output = 5_000
+tier = 3
+checked = 2026-11-20
+
+[[models]]
+key = "google/gemini-3.1-pro"
+service = "google"
+name = "Gemini 3.1 Pro"
+maker = "Google"
+model = "gemini-3.1-pro-preview"
+input = "2.00"
+output = "12.00"
+context = 200_000
+max_output = 12_000
+typical_output = 5_000
+tier = 3
+checked = 2026-11-20
+
+[[models]]
+key = "anthropic/claude-opus-5-5"
+service = "anthropic"
+name = "Claude Opus 5.5"
+maker = "Anthropic"
+model = "claude-opus-5-5"
+input = "4.00"
+output = "20.00"
+context = 100_000
+max_output = 4_000
+typical_output = 2_500
+tier = 3
+checked = 2026-11-20
+
+[[models]]
+key = "mistral/mistral-large-3"
+service = "mistral"
+name = "Mistral Large 3"
+maker = "Mistral AI"
+model = "mistral-large-2512"
+input = "0.50"
+output = "1.50"
+context = 262_000
+max_output = 4_000
+typical_output = 2_500
+tier = 2
+open_weights = true
+checked = 2026-11-20
+
+[[models]]
+key = "xai/grok-4.7"
+service = "xai"
+name = "Grok 4.7"
+maker = "xAI"
+model = "grok-4.7"
+input = "2.00"
+output = "6.00"
+context = 200_000
+max_output = 12_000
+typical_output = 5_000
+tier = 3
+checked = 2026-11-20
+
+[[models]]
+key = "deepseek/deepseek-v4.1-flash"
+service = "deepseek"
+name = "DeepSeek V4.1 Flash"
+maker = "DeepSeek"
+model = "deepseek-flash"
+input = "0.30"
+output = "1.20"
+context = 1_000_000
+max_output = 8_000
+typical_output = 4_000
+tier = 2
+open_weights = true
+checked = 2026-11-20
+note = "Peak-hour price; half that off-peak."
+
+[[models]]
+key = "google/gemini-3-flash"
+service = "google"
+name = "Gemini 3 Flash"
+maker = "Google"
+model = "gemini-3-flash-preview"
+input = "0.50"
+output = "3.00"
+context = 1_000_000
+max_output = 8_000
+typical_output = 3_000
+tier = 2
+checked = 2026-11-20
+
+[[models]]
+key = "openai/gpt-6.1-terra"
+service = "openai"
+name = "GPT-6.1 Terra"
+maker = "OpenAI"
+model = "gpt-6.1-terra"
+input = "1.00"
+output = "5.00"
+context = 128_000
+max_output = 8_000
+typical_output = 3_000
+tier = 2
+checked = 2026-11-20
+
+[[models]]
+key = "anthropic/claude-haiku-5-5"
+service = "anthropic"
+name = "Claude Haiku 5.5"
+maker = "Anthropic"
+model = "claude-haiku-5-5"
+input = "0.10"
+output = "0.50"
+context = 100_000
+max_output = 4_000
+typical_output = 2_500
+tier = 2
+checked = 2026-11-20
+
+[[models]]
+key = "huggingface/gpt-oss-120b"
+service = "huggingface"
+name = "gpt-oss-120b"
+maker = "OpenAI"
+model = "openai/gpt-oss-120b:cheapest"
+input = "0.15"
+output = "0.75"
+context = 128_000
+max_output = 8_000
+typical_output = 3_000
+tier = 2
+open_weights = true
+checked = 2026-11-20
+note = "Open weights. The price varies by Hugging Face partner; shown at a typical rate."
+
+[[models]]
+key = "huggingface/qwen3.8-27b"
+service = "huggingface"
+name = "Qwen3.8 27B"
+maker = "Alibaba Qwen"
+model = "Qwen/Qwen3.8-27B:cheapest"
+input = "0.45"
+output = "3.00"
+context = 262_000
+max_output = 8_000
+typical_output = 4_000
+tier = 2
+open_weights = true
+checked = 2026-11-20
+note = "Open weights. Strong in many languages."
+
+[[models]]
+key = "huggingface/gemma-4-31b"
+service = "huggingface"
+name = "Gemma 4 31B"
+maker = "Google"
+model = "google/gemma-4-31B-it:cheapest"
+input = "0.20"
+output = "0.40"
+context = 262_000
+max_output = 4_000
+typical_output = 2_500
+tier = 2
+open_weights = true
+checked = 2026-11-20
+note = "Open weights. A small model that writes well."
+
+[[models]]
+key = "mistral/mistral-medium-3.5"
+service = "mistral"
+name = "Mistral Medium 3.5"
+maker = "Mistral AI"
+model = "mistral-medium-latest"
+input = "1.50"
+output = "7.50"
+context = 256_000
+max_output = 4_000
+typical_output = 2_500
+tier = 2
+open_weights = true
+checked = 2026-11-20
+
+[[models]]
+key = "huggingface/glm-5.3"
+service = "huggingface"
+name = "GLM-5.3"
+maker = "Z.ai"
+model = "zai-org/GLM-5.3:cheapest"
+input = "1.40"
+output = "4.40"
+context = 1_000_000
+max_output = 8_000
+typical_output = 4_000
+tier = 3
+open_weights = true
+checked = 2026-11-20
+note = "Open weights."
+
+[[models]]
+key = "openai/gpt-6-astra"
+service = "openai"
+name = "GPT-6 Astra"
+maker = "OpenAI"
+model = "gpt-6-astra"
+input = "10.00"
+output = "50.00"
+context = 128_000
+max_output = 16_000
+typical_output = 6_000
+tier = 3
+checked = 2026-11-20
+note = "OpenAI's most capable model, and its most expensive."
+
+[[models]]
+key = "huggingface/llama-3.3-70b"
+service = "huggingface"
+name = "Llama 3.3 70B"
+maker = "Meta"
+model = "meta-llama/Llama-3.3-70B-Instruct:cheapest"
+input = "0.22"
+output = "0.50"
+context = 131_000
+max_output = 4_000
+typical_output = 2_500
+tier = 1
+open_weights = true
+checked = 2026-11-20
+note = "Open weights."
+
+[[models]]
+key = "openai/gpt-6-luna"
+service = "openai"
+name = "GPT-6 Luna"
+maker = "OpenAI"
+model = "gpt-6-luna"
+input = "0.10"
+output = "0.50"
+context = 128_000
+max_output = 8_000
+typical_output = 3_000
+tier = 1
+checked = 2026-11-20
+
+[[models]]
+key = "mistral/mistral-small-4"
+service = "mistral"
+name = "Mistral Small 4"
+maker = "Mistral AI"
+model = "mistral-small-latest"
+input = "0.10"
+output = "0.30"
+context = 128_000
+max_output = 4_000
+typical_output = 2_500
+tier = 1
+open_weights = true
+checked = 2026-11-20

@@ -106,6 +106,7 @@ class SubmissionView:
     can_revise: bool
     can_share: bool
     guest: bool
+    sees_ai_reviews: bool = False  # the author and the organizers; never reviewers (ADR 0025)
 
 
 @dataclass(frozen=True)
@@ -324,6 +325,8 @@ class CallsService:
             can_revise=is_author and open_ and Permission.SUBMIT in access.perms,
             can_share=is_author or Permission.CALLS_MANAGE in access.perms,
             guest=access.guest,
+            sees_ai_reviews=not access.guest
+            and (is_author or Permission.CALLS_MANAGE in access.perms),
         )  # fmt: skip
 
     def revision(self, actor: UserId, submission_id: SubmissionId, number: int) -> Revision:

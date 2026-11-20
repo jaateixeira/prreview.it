@@ -173,26 +173,28 @@ class QuickReviewService:
         return self._tenancy.create_organization(actor, f"{name}'s reviews", GENERAL_PRESET).id
 
     def _recognise(self, upload: Upload) -> tuple[Upload, str]:
-        """A PDF file stays a PDF. Any other file must be plain UTF-8 text. Pasted text is text.
-        An address goes to the type that takes addresses (web pages, ADR 0022)."""
-        if upload.url is not None:
-            web = self._artifacts.for_input("url")
-            if web is None:
-                raise ArtifactError("This Previewit does not review web pages.")
-            return upload, web.key
-        if upload.content is None:
-            return upload, "text"
-        if upload.content.startswith(b"%PDF-"):
-            return upload, "pdf"
-        refusal = ArtifactError(
-            "Previewit reviews PDF files and plain text. Save your file as a PDF or paste the text."
-        )
-        try:
-            text = upload.content.decode("utf-8-sig")
-        except UnicodeDecodeError:
-            raise refusal from None
-        if any(
-            c < " " and c not in "\t\n\r\f" for c in text
-        ):  # a binary file that happens to decode
-            raise refusal
-        return Upload(text=text), "text"
+        return recognise(self._artifacts, upload)
+
+
+def recognise(artifacts: ArtifactRegistry, upload: Upload) -> tuple[Upload, str]:
+    """A PDF file stays a PDF. Any other file must be plain UTF-8 text. Pasted text is text.
+    An address goes to the type that takes addresses (web pages, ADR 0022)."""
+    if upload.url is not None:
+        web = artifacts.for_input("url")
+        if web is None:
+            raise ArtifactError("This Previewit does not review web pages.")
+        return upload, web.key
+    if upload.content is None:
+        return upload, "text"
+    if upload.content.startswith(b"%PDF-"):
+        return upload, "pdf"
+    refusal = ArtifactError(
+        "Previewit reviews PDF files and plain text. Save your file as a PDF or paste the text."
+    )
+    try:
+        text = upload.content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise refusal from None
+    if any(c < " " and c not in "\t\n\r\f" for c in text):  # a binary file that decodes
+        raise refusal
+    return Upload(text=text), "text"

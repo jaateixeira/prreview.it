@@ -107,6 +107,7 @@ url = "valkey://127.0.0.1:6379/0"
 | `[logging]` | `level`: `TRACE`, `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `[policy]` | `require_verified_email_for`: which actions need a verified email. Default: none, so invited reviewers can review without an account and join afterwards (ADR 0020). Listing `review` or `join` turns that off |
 | `[login.google]`, `[login.apple]`, `[login.haka]` | providers, each on when configured ([`docs/auth/login-setup.md`](../auth/login-setup.md)) |
+| `[ai]` | AI reviews (ADR 0025): `enabled` (default `true`), `ollama_url` of your own model server for the free models, `local_place` and `local_country` (shown with a flag), `local_context` (tokens, default 8192), `local_models` (offer only these), `margin_percent` (default 30). See section 8a |
 
 The file holds secrets: keep it readable by the `previewit` account only (the server warns if group or others can read it). Typos in keys, sections or action names stop the server at start and name the setting. Forms are checked against `base_url`, so the site lives at that one address. List every other name that reaches the server under `aliases`: visitors who arrive there are sent to the same page at `base_url`. Each name needs DNS, a certificate and a place in the proxy (`server_name`) or tunnel.
 
@@ -201,9 +202,39 @@ location = /mcp {
 
 Previewit sends verification mails and invitations over SMTP only. Use a relay that signs for your domain, and publish its SPF, DKIM and DMARC records before the first invitation. Send yourself an invitation and check that the headers say `spf=pass` and `dkim=pass`.
 
+## 8a. AI reviews and the free models
+
+People can ask AI models to review their work (ADR 0025). The paid models run at their own services with the person's key; Previewit only passes the key on, for one request, and never stores it. The free models run on **your own** [Ollama](https://ollama.com) server. Without one, people see only the paid models.
+
+Previewit's hosted site uses an AMD BC-250 board with 16 GB of shared memory. Small models (7 to 12 billion parameters) fit; one review of a short essay takes a few minutes. Previewit sends the free server one review at a time.
+
+On the model server (Debian, on the same private network as Previewit):
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+sudo systemctl edit ollama        # add: [Service] Environment="OLLAMA_HOST=0.0.0.0:11434"
+sudo systemctl restart ollama
+ollama pull qwen3:8b              # and any others; embedding models are never offered
+```
+
+Let only the Previewit server reach port 11434 (a firewall rule or a private network): Ollama has no login. Then in `previewit.toml`:
+
+```toml
+[ai]
+ollama_url = "http://10.0.0.7:11434"
+local_place = "Finland"
+local_country = "FI"
+local_context = 8192                  # raise it if the board has memory to spare
+# local_models = ["qwen3:8b"]         # offer only these
+```
+
+Previewit looks up the installed models every five minutes; if the server is off, the free models are simply not offered and the log says so once. Reviews are written in the background and survive nothing: after a restart, free reviews are queued again and keyed ones ask the person to try again. Free reviews are limited to ten a person a day.
+
+The prices of the paid models are in `src/previewit/adapters/ai/models.toml`, with the date each was checked. They change often: check them every month. Set `enabled = false` to switch AI reviews off.
+
 ## 9. Backup
 
-Submitted text and PDFs are stored **in PostgreSQL** (table `revisions`), so a database backup is the whole backup. The table `prepared_requests` also holds files that visitors chose before signing in, for one hour (at most 200 at a time, 2 GB at the very most); the running site deletes them when they expire (ADR 0024). Dump regularly and test a restore. Valkey needs no backup; it only holds copies. Keep the configuration and the secret key with the dumps: with a new key, everyone is signed out.
+Submitted text and PDFs are stored **in PostgreSQL** (table `revisions`), so a database backup is the whole backup. AI reviews are in `ai_reviews`; no key is stored anywhere. The table `prepared_requests` also holds files that visitors chose before signing in, for one hour (at most 200 at a time, 2 GB at the very most); the running site deletes them when they expire (ADR 0024). Dump regularly and test a restore. Valkey needs no backup; it only holds copies. Keep the configuration and the secret key with the dumps: with a new key, everyone is signed out.
 
 ```bash
 sudo -u postgres pg_dump --format=custom previewit > previewit-$(date +%F).dump

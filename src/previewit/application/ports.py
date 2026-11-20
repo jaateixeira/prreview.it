@@ -285,6 +285,10 @@ class Entitlements(Protocol):
 
     def may_create_share(self, user_id: UserId, shares_so_far: int) -> bool: ...
 
+    def may_request_free_ai_review(self, user_id: UserId, free_today: int) -> bool:
+        """Free AI reviews run on Previewit's own small server (ADR 0025)."""
+        ...
+
 
 class RubricRepository(Protocol):
     """Rubrics and their criteria. Rows carry org_id; callers authorise first."""

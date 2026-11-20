@@ -14,12 +14,14 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import FormData, UploadFile
 from starlette.responses import Response
 
+from previewit.adapters.web.ai_routes import choices_context, choices_from, upload_from
 from previewit.adapters.web.calls_routes import MAX_BODY_BYTES
 from previewit.adapters.web.kit import WebKit
 from previewit.adapters.web.limits import RateLimiter
 from previewit.adapters.web.local_time import BadTime, parse_day_time, viewer_zone
 from previewit.adapters.web.pages_routes import check_page
 from previewit.adapters.web.tenancy_routes import current_user
+from previewit.application.ai_reviews import AiReviewsService, InvalidAiRequest
 from previewit.application.artifacts import ArtifactError, Upload
 from previewit.application.prepared_requests import (
     VISITOR,
@@ -106,9 +108,11 @@ def build_quick_review_router(
     pages: PageChecker,
     prepared: PreparedRequestsService,
     visitors: RateLimiter,
+    ai: AiReviewsService | None = None,
 ) -> APIRouter:
     """Request a review. Visitors may fill it in too (ADR 0024): Send it out keeps their form,
-    file included, and sends them to sign in; they come back to it filled in."""
+    file included, and sends them to sign in; they come back to it filled in. AI models may
+    review it too (ADR 0025)."""
     router = APIRouter()
     run = run_in_threadpool
 
@@ -170,12 +174,21 @@ def build_quick_review_router(
         page, problem = (None, None)
         if found.web_address:
             page, problem = await check_page(pages, found.web_address)
-        extra = {
+        extra: dict[str, object] = {
             "prepared": token,
             "kept_for_visitor": found.source == VISITOR,
             "page": page,
             "problem": problem,
         }
+        if ai is not None and found.ai_models:  # chosen before signing in; keys never kept
+            if found.file_content is not None:
+                work = Upload(content=found.file_content, filename=found.file_name)
+            elif found.web_address:
+                work = Upload(url=found.web_address)
+            else:
+                work = Upload(text=found.text) if found.text.strip() else None
+            context = await choices_context(ai, work, read_pages=True, chosen=found.ai_models)
+            extra.update(context, kept_ai_models=True)
         return form_page(request, draft, extra=extra)
 
     @router.get("/review/samples/{name}")
@@ -232,6 +245,7 @@ def build_quick_review_router(
         found: EmailList,
         picked: tuple[str, bytes] | None,
         again: Callable[[str, EmailList | None], Response],
+        ai_models: list[str],
     ) -> Response:
         if picked is not None:
             try:  # the kind and size of a file can be checked now; a web page waits
@@ -252,6 +266,7 @@ def build_quick_review_router(
                     message=draft.cover_letter, due=draft.due, due_time=draft.due_time,
                     file_name=picked[0] if picked else "",
                     file_content=picked[1] if picked else None,
+                    ai_models=ai_models,  # the models only: keys are never kept
                 )
             )  # fmt: skip
         except InvalidPreparedRequest as problem:
@@ -284,10 +299,22 @@ def build_quick_review_router(
         kept = await run(prepared.open, token) if token else None
         if kept is not None and kept.file_content is not None:
             draft.kept_file = kept.file_name
-        keep: dict[str, object] | None = {"prepared": token} if token else None
+        keep: dict[str, object] = {"prepared": token} if token else {}
+
+        # AI models chosen too (ADR 0025): shown again, keys left out, if anything needs fixing.
+        ai_models = kit.texts(form, "ai_model") if ai is not None else []
+        ai_context: dict[str, object] = {}
+        if ai is not None and ai_models:
+            work = await upload_from(form)
+            if work is None and kept is not None and kept.file_content is not None:
+                work = Upload(content=kept.file_content, filename=kept.file_name)
+            ai_context = await choices_context(
+                ai, work, read_pages=user is not None, chosen=ai_models
+            )
 
         def again(message: str, found: EmailList | None = None) -> Response:
-            return form_page(request, draft, error=message, found=found, status=400, extra=keep)
+            extra = {**keep, **ai_context}
+            return form_page(request, draft, error=message, found=found, status=400, extra=extra)
 
         # The people: typed, plus a file of addresses if one came along.
         found = parse_typed(draft.emails)
@@ -322,7 +349,17 @@ def build_quick_review_router(
             return again("Choose a file, give the address of a web page or paste your text.", found)
 
         if user is None:  # a visitor: keep the form, file included, while they sign in
-            return await keep_for_visitor(request, draft, found, picked, again)
+            return await keep_for_visitor(request, draft, found, picked, again, ai_models)
+
+        choices = choices_from(form, await run(ai.cards)) if ai is not None and ai_models else []
+        if ai is not None and choices:  # checked before anything is made
+            chars = ai_context.get("chars")
+            if not isinstance(chars, int):
+                return again(str(ai_context.get("ai_error") or "Check the work first."), found)
+            try:
+                await run(ai.check, user.id, choices, chars)
+            except InvalidAiRequest as problem:
+                return again(str(problem), found)
 
         zone = viewer_zone(request)
         try:
@@ -353,6 +390,18 @@ def build_quick_review_router(
 
         if token:
             await run(prepared.used, token)  # sent: the kept copy and its file go
+        ai_started: list[object] = []
+        ai_error: str | None = None
+        if ai is not None and choices:
+            asking, note = ai, draft.cover_letter
+            try:
+                ai_started = list(
+                    await run(
+                        lambda: asking.request(user.id, result.submission_id, choices, note=note)
+                    )
+                )
+            except InvalidAiRequest as problem:
+                ai_error = str(problem)
         base = kit.settings.base_url.rstrip("/")
         return kit.render(
             request,
@@ -362,6 +411,8 @@ def build_quick_review_router(
                 "title": result.title or title,
                 "result": result,
                 "rows": [(invite, f"{base}/i/{invite.token}") for invite in result.invites],
+                "ai_started": ai_started,
+                "ai_error": ai_error,
             },
         )
 

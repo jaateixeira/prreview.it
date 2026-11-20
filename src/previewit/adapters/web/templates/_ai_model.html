@@ -1,0 +1,16 @@
+<li class="ai-model">
+  <label class="check">
+    <input type="checkbox" name="ai_model" value="{{ s.card.key }}"{% if s.card.key in chosen %} checked{% endif %}>
+    <span><strong>{{ s.card.name }}</strong> <small>by {{ s.card.maker }}{% if s.card.open_weights %}, open weights{% endif %}</small></span>
+  </label>
+  <p class="ai-where"><span aria-hidden="true">{{ s.card.flag }}</span> Runs at: {{ s.card.hosting }}</p>
+  <p class="ai-why">{{ s.reason }}{% if s.card.note %} {{ s.card.note }}{% endif %}</p>
+  <p class="ai-cost">
+    {% if s.estimate.free %}<strong>Free</strong>
+    {% else %}{% set about, most = s.estimate.own_key_usd | usd, s.estimate.at_most_usd | usd %}
+      With your {{ s.card.key_label }}: <strong>about {{ about }}</strong>
+      {% if most != about %}<small>(at most {{ most }})</small>{% endif %}<br>
+      Without a key: about {{ s.estimate.previewit_usd | usd }} <small>(paying through Previewit opens soon)</small>
+    {% endif %}
+  </p>
+</li>

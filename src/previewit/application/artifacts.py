@@ -10,7 +10,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Literal, Protocol, runtime_checkable
 
-from previewit.application.web_pages import PageChecker
+from previewit.application.web_pages import PageChecker, PageReader
 from previewit.domain.calls import Artifact
 
 
@@ -56,12 +56,23 @@ class NamesItself(Protocol):
     def title_of(self, artifact: Artifact) -> str: ...
 
 
+@runtime_checkable
+class ReadsText(Protocol):
+    """An artifact type whose content an AI model can read as plain text (ADR 0025)."""
+
+    def text_of(self, artifact: Artifact) -> str:
+        """The words of the work. Raise ArtifactError, in words for the person, if they cannot
+        be read (a scanned PDF, a page that is gone)."""
+        ...
+
+
 @dataclass(frozen=True)
 class PluginServices:
     """What the core lends to plugins that need the world outside: given at startup by the
     composition root, so a plugin never imports an adapter."""
 
     pages: PageChecker
+    reader: PageReader | None = None  # reads a page's text for AI reviews (ADR 0025)
 
 
 @runtime_checkable

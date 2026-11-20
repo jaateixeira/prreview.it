@@ -4,6 +4,8 @@
   <h1>Get your work reviewed</h1>
   <p class="lead">Three quick steps: your work, your reviewers, send. Previewit makes the review
     space for you.</p>
+  <p class="aside">Organising a peer review of work that others will submit?
+    <a href="{% if visitor %}/signup?next=%2Fspaces{% else %}/spaces{% endif %}">Start here</a>.</p>
   {% if prepared and kept_for_visitor %}
   <p class="notice" role="status">Here is your request as you left it. Check it, then send it
     out.</p>
@@ -62,6 +64,8 @@
         {% endfor %}
       </details>
     </fieldset>
+
+    {% include "_ai_step.html" %}
 
     <fieldset class="card step">
       <legend>Send it</legend>

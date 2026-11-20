@@ -11,6 +11,9 @@ network, so the checker:
   environment, and gives up after a few seconds;
 - reads at most the first 256 kB of an HTML page, for the title, and never the body of
   anything else.
+
+For an AI review (ADR 0025) it reads the words of a page, with the same rules: at most 2 MB
+of HTML or plain text, within 20 seconds.
 """
 
 from __future__ import annotations
@@ -21,7 +24,8 @@ import socket
 import threading
 import time
 from collections import OrderedDict
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import contextmanager
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -34,6 +38,7 @@ from previewit.application.web_pages import (
     PORTS,
     PageCheck,
     PageChecker,
+    PageReader,
     PageUnreachable,
     host_of,
     is_public,
@@ -45,6 +50,9 @@ MAX_HEAD_BYTES = 256_000
 TIMEOUT_SECONDS = 6.0
 DEADLINE_SECONDS = 10.0  # for the whole check, however slowly the bytes drip in
 HTML_TYPES = {"text/html", "application/xhtml+xml"}
+MAX_PAGE_BYTES = 2_000_000  # read for an AI review
+READ_DEADLINE_SECONDS = 20.0
+MAX_TEXT_CHARS = 400_000
 
 Resolve = Callable[[str, int], list[tuple[str, int]]]
 Allowed = Callable[[ipaddress.IPv4Address | ipaddress.IPv6Address], bool]
@@ -138,21 +146,59 @@ class HttpPageChecker:
 
     def check(self, address: str) -> PageCheck:
         url = normalise_address(address)
-        client = httpx.Client(
+        started = time.monotonic()
+        accept = "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8"
+        with self._fetching(), self._client(accept) as client, client.stream("GET", url) as got:
+            return self._read(url, got, started)
+
+    def read_text(self, address: str) -> str:
+        """The words of a page, for an AI review (ADR 0025)."""
+        url = normalise_address(address)
+        started = time.monotonic()
+        accept = "text/html,application/xhtml+xml,text/plain;q=0.9"
+        with self._fetching(), self._client(accept) as client, client.stream("GET", url) as got:
+            status = got.status_code
+            if status == 401:
+                raise PageUnreachable("The page now asks for a login, so it cannot be read.")
+            if status in (404, 410):
+                raise PageUnreachable(f"The page is gone (answer {status}).")
+            if not 200 <= status < 300:
+                raise PageUnreachable(f"The site did not show the page (answer {status}).")
+            media_type = got.headers.get("content-type", "").split(";")[0].strip().lower()
+            if media_type not in HTML_TYPES and media_type != "text/plain":
+                raise PageUnreachable(
+                    "AI models can read web pages and plain text; this address gives a file "
+                    f"({media_type or 'of unknown type'})."
+                )
+            body = bytearray()
+            for chunk in got.iter_bytes():
+                body += chunk
+                if len(body) >= MAX_PAGE_BYTES:
+                    break
+                if time.monotonic() - started > READ_DEADLINE_SECONDS:
+                    raise PageUnreachable("The site took too long to send the page.")
+            data = bytes(body[:MAX_PAGE_BYTES])
+            if media_type == "text/plain":
+                return data.decode(got.charset_encoding or "utf-8", errors="replace")[
+                    :MAX_TEXT_CHARS
+                ]
+            return page_text(data, got.charset_encoding)
+
+    def _client(self, accept: str) -> httpx.Client:
+        return httpx.Client(
             transport=_PinnedTransport(_PublicOnly(self._resolve, self._allowed)),
             follow_redirects=True,
             max_redirects=MAX_REDIRECTS,
             timeout=httpx.Timeout(self._timeout),
             trust_env=False,
-            headers={
-                "User-Agent": self._user_agent,
-                "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
-            },
+            headers={"User-Agent": self._user_agent, "Accept": accept},
         )
-        started = time.monotonic()
+
+    @contextmanager
+    def _fetching(self) -> Iterator[None]:
+        """Turns what can go wrong on the way to a page into a reason for the person."""
         try:
-            with client, client.stream("GET", url) as response:
-                return self._read(url, response, started)
+            yield
         except _NotPublic:
             raise PageUnreachable(NOT_PUBLIC) from None
         except _OddPort:
@@ -250,6 +296,12 @@ class RecentChecks:
                 self._seen.popitem(last=False)
         return found
 
+    def read_text(self, address: str) -> str:
+        """Not remembered: an AI review reads the page as it is when the review is written."""
+        if not isinstance(self._inner, PageReader):
+            raise PageUnreachable("This Previewit cannot read web pages.")
+        return self._inner.read_text(address)
+
 
 # -- the preview: title, description and site name from the head of an HTML page ---------------
 
@@ -316,3 +368,64 @@ class _HeadParser(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._in_title and not self._done:
             self.title += data
+
+
+# -- the words of a page, for an AI review (ADR 0025) ------------------------------------------
+
+_SKIPPED = {"script", "style", "noscript", "template", "svg", "head", "iframe", "canvas"}
+_BLOCKS = {
+    "p", "div", "br", "li", "ul", "ol", "tr", "td", "th", "table", "section", "article", "main",
+    "header", "footer", "aside", "nav", "blockquote", "pre", "figure", "figcaption", "dt", "dd",
+    "h1", "h2", "h3", "h4", "h5", "h6", "hr", "form",
+}  # fmt: skip
+
+
+def page_text(html: bytes, charset: str | None = None) -> str:
+    """The visible words of an HTML page, one block a line. Scripts and styles are left out."""
+    encoding = charset
+    if encoding is None:
+        found = _META_CHARSET.search(html[:4096])
+        encoding = found.group(1).decode("ascii") if found else "utf-8"
+    try:
+        markup = html.decode(encoding, errors="replace")
+    except LookupError:
+        markup = html.decode("utf-8", errors="replace")
+    parser = _TextParser()
+    try:
+        parser.feed(markup)
+        parser.close()
+    except AssertionError:  # html.parser gives up on some broken markup; keep what it found
+        pass
+    lines = (" ".join(line.split()) for line in "".join(parser.parts).splitlines())
+    text = "\n".join(line for line in lines if line)
+    return text[:MAX_TEXT_CHARS]
+
+
+class _TextParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._skipping = 0
+        self._pre = 0  # inside <pre>, line breaks are the author's
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in _SKIPPED:
+            self._skipping += 1
+        elif tag in _BLOCKS:
+            self.parts.append("\n")
+            self._pre += tag == "pre"
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in _BLOCKS:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in _SKIPPED:
+            self._skipping = max(self._skipping - 1, 0)
+        elif tag in _BLOCKS:
+            self.parts.append("\n")
+            self._pre = max(self._pre - (tag == "pre"), 0)
+
+    def handle_data(self, data: str) -> None:
+        if not self._skipping:
+            self.parts.append(data if self._pre else re.sub(r"\s+", " ", data))

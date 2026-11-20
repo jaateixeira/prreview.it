@@ -45,9 +45,14 @@ Press **Request a review** on the home page. One page asks for three things. You
 
    A web page must be one anyone can open. Previewit checks it can reach it while you type and shows its title; a page behind a login, or on a private network, is refused with the reason. Previewit does not copy the page: reviewers open it from Previewit, so they see it as it is when they look. (ADR 0022)
 2. **The reviewers.** Type or paste email addresses, separated by commas, spaces or new lines. Previewit checks them as you type and points at any that do not look right. Or import a list from a `.txt`, `.csv`, `.json` or `.xml` file: Previewit picks out the addresses. **See a sample** shows each format and lets you download it.
-3. **Send it.** Add a few words for the reviewers and a due date if you like (two weeks otherwise). Reviews are due at 16:00 in your time zone unless you choose another time. Leave **Email the invitations for me** ticked and Previewit mails each person their own link in your name (confirm your own email address first). Untick it and you get the links to send yourself.
+3. **AI models too (optional).** Press **Yes, suggest AI models** and Previewit suggests three AI models that can read your whole work: a free one that runs on Previewit's own server, one of the strongest, and a good-value one. **See more models** lists up to 20. A flag shows the country where each model runs. Each shows what one review costs, in US dollars: with your own key (you pay the model's service directly, and Previewit never stores the key), and without a key (Previewit pays and charges you: this opens soon). Tick up to three and paste your key for the paid ones. Nothing goes to any model before you send. (ADR 0025)
+4. **Send it.** Add a few words for the reviewers and a due date if you like (two weeks otherwise). Reviews are due at 16:00 in your time zone unless you choose another time. Leave **Email the invitations for me** ticked and Previewit mails each person their own link in your name (confirm your own email address first). Untick it and you get the links to send yourself.
 
 Previewit makes the review space, the call, the round and one personal invitation per reviewer. The last page lists each reviewer with their link, shown once, and takes you to the round to follow progress.
+
+AI reviews arrive within minutes on your work's page, under **AI reviews**, and Previewit emails you. Only you and the organizers of the review space see them; your reviewers never do. You can ask more models there later. AI models make mistakes: weigh their review as one reader's view.
+
+Organizing a peer review of work that other people will submit? Follow **Start here** at the top of the page.
 
 ### From your AI assistant
 
@@ -124,6 +129,8 @@ Each round has a policy with independent directions.
 |---|---|---|
 | Storage | Under 50 MB | The organizer pays |
 | Shares | Up to 100 per user | The organizer pays |
+| AI reviews by Previewit's own models | 10 a day | Use your own key |
+| AI reviews by other models | With your own key, paid to the model's service | Previewit pays and charges you (soon) |
 | Students and reviewers | Always free | Always free |
 
 Usage is shown in your account, with a warning before a limit is reached.

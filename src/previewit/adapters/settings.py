@@ -54,6 +54,14 @@ class Settings:
     verification_policy: VerificationPolicy = field(default=DEFAULT_POLICY)
     cache_url: str | None = None  # valkey://host:6379/0; unset = in-process cache
     log_level: str = "INFO"  # TRACE | DEBUG | INFO | WARNING | ERROR
+    # AI reviews (ADR 0025). The free models run on Previewit's own Ollama server, if any.
+    ai_enabled: bool = True
+    ai_ollama_url: str | None = None  # e.g. http://10.0.0.7:11434
+    ai_local_place: str = "Finland"  # where that server is, in words
+    ai_local_country: str = "FI"  # and as a country code, for the flag
+    ai_local_context: int = 8192  # tokens each local model reads and writes in one go
+    ai_local_models: tuple[str, ...] = ()  # offer only these installed models; empty: all
+    ai_margin_percent: int = 30  # on top of a service's price when Previewit pays (M8)
 
     @property
     def https(self) -> bool:
@@ -109,7 +117,38 @@ class Settings:
             verification_policy=_policy(env),
             cache_url=_get(env, "CACHE_URL"),
             log_level=_log_level(env),
+            ai_enabled=_flag(env, "AI_ENABLED", default=True),
+            ai_ollama_url=(_get(env, "AI_OLLAMA_URL") or "").rstrip("/") or None,
+            ai_local_place=_get(env, "AI_LOCAL_PLACE") or cls.ai_local_place,
+            ai_local_country=(_get(env, "AI_LOCAL_COUNTRY") or cls.ai_local_country).upper(),
+            ai_local_context=_number(env, "AI_LOCAL_CONTEXT", cls.ai_local_context),
+            ai_local_models=tuple(
+                m.strip() for m in (_get(env, "AI_LOCAL_MODELS") or "").split(",") if m.strip()
+            ),
+            ai_margin_percent=_number(env, "AI_MARGIN_PERCENT", cls.ai_margin_percent),
         )
+
+
+def _flag(env: Mapping[str, str], name: str, *, default: bool) -> bool:
+    raw = (_get(env, name) or "").strip().lower()
+    if not raw:
+        return default
+    if raw not in ("true", "false", "1", "0", "yes", "no"):
+        raise ConfigError(f"PREVIEWIT_{name} must be true or false")
+    return raw in ("true", "1", "yes")
+
+
+def _number(env: Mapping[str, str], name: str, default: int) -> int:
+    raw = _get(env, name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ConfigError(f"PREVIEWIT_{name} must be a whole number") from None
+    if value < 0:
+        raise ConfigError(f"PREVIEWIT_{name} cannot be negative")
+    return value
 
 
 def _get(env: Mapping[str, str], name: str) -> str | None:
@@ -181,6 +220,12 @@ _KEYS: dict[tuple[str, str], str] = {
     ("mail", "from"): "MAIL_FROM",
     ("cache", "url"): "CACHE_URL",
     ("logging", "level"): "LOG_LEVEL",
+    ("ai", "enabled"): "AI_ENABLED",
+    ("ai", "ollama_url"): "AI_OLLAMA_URL",
+    ("ai", "local_place"): "AI_LOCAL_PLACE",
+    ("ai", "local_country"): "AI_LOCAL_COUNTRY",
+    ("ai", "local_context"): "AI_LOCAL_CONTEXT",
+    ("ai", "margin_percent"): "AI_MARGIN_PERCENT",
     ("login.google", "client_id"): "GOOGLE_CLIENT_ID",
     ("login.google", "client_secret"): "GOOGLE_CLIENT_SECRET",
     ("login.apple", "client_id"): "APPLE_CLIENT_ID",
@@ -211,7 +256,9 @@ _SECRET_KEYS = {
 }
 _POLICY_KEY = ("policy", "require_verified_email_for")
 _ALIASES_KEY = ("server", "aliases")
-_INT_KEYS = {"SMTP_PORT"}
+_LOCAL_MODELS_KEY = ("ai", "local_models")
+_INT_KEYS = {"SMTP_PORT", "AI_LOCAL_CONTEXT", "AI_MARGIN_PERCENT"}
+_BOOL_KEYS = {"AI_ENABLED"}
 
 
 def load_settings(
@@ -257,6 +304,10 @@ def _read_file(path: Path) -> dict[str, str]:
             if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
                 raise ConfigError(f"{path}: {where} must be a list of addresses")
             out["PREVIEWIT_ALIASES"] = ",".join(value)
+        elif (section, key) == _LOCAL_MODELS_KEY:
+            if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+                raise ConfigError(f"{path}: {where} must be a list of model names")
+            out["PREVIEWIT_AI_LOCAL_MODELS"] = ",".join(value)
         elif (section, key) in _SECRET_FILES:
             target = _SECRET_FILES[(section, key)]
             if target in flat:
@@ -289,10 +340,14 @@ def _flatten(node: Mapping[str, Any], prefix: str, out: dict[tuple[str, str], An
 
 
 def _all_sections() -> set[tuple[str, str]]:
-    return set(_KEYS) | set(_SECRET_FILES) | {_POLICY_KEY, _ALIASES_KEY}
+    return set(_KEYS) | set(_SECRET_FILES) | {_POLICY_KEY, _ALIASES_KEY, _LOCAL_MODELS_KEY}
 
 
 def _scalar(path: Path, where: str, value: Any, name: str, base: Path) -> str:
+    if name in _BOOL_KEYS:
+        if not isinstance(value, bool):
+            raise ConfigError(f"{path}: {where} must be true or false")
+        return "true" if value else "false"
     if name in _INT_KEYS:
         if isinstance(value, bool) or not isinstance(value, int):
             raise ConfigError(f"{path}: {where} must be a number")

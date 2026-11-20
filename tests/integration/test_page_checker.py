@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import contextlib
 import ipaddress
+import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from previewit.adapters.web_pages import HttpPageChecker, RecentChecks, read_preview
+from previewit.adapters.web_pages import HttpPageChecker, RecentChecks, page_text, read_preview
 from previewit.application.web_pages import PageCheck, PageUnreachable
 
 PAGES: dict[str, tuple[int, dict[str, str], bytes]] = {
@@ -27,6 +28,18 @@ PAGES: dict[str, tuple[int, dict[str, str], bytes]] = {
         b'<meta property="og:site_name" content="Sam\'s notes"></head><body>Hi</body></html>',
     ),
     "/plain": (200, {"Content-Type": "text/html"}, b"<title>Just a title</title><p>x"),
+    "/article": (
+        200,
+        {"Content-Type": "text/html; charset=utf-8"},
+        b"<html><head><title>T</title><style>p{color:red}</style></head><body>"
+        b"<nav>Home | About</nav><h1>On trust</h1><script>alert('no')</script>"
+        b"<p>Tests build\n   trust.</p><p>Caf&eacute; <b>notes</b></p></body></html>",
+    ),
+    "/notes.txt": (
+        200,
+        {"Content-Type": "text/plain; charset=utf-8"},
+        "Plain words, äiti".encode(),
+    ),
     "/paper.pdf": (200, {"Content-Type": "application/pdf"}, b"%PDF-1.7 " + b"x" * 1000),
     "/moved": (301, {"Location": "/essay"}, b""),
     "/to-inside": (302, {"Location": "http://inside.test/secret"}, b""),
@@ -207,3 +220,39 @@ def test_recent_checks_are_remembered_for_a_while(port):
 )
 def test_the_preview_is_read_from_the_head(head, charset, expected):
     assert read_preview(head, charset) == expected
+
+
+# -- reading a page's words for an AI review (ADR 0025) ----------------------------------------
+
+
+def test_the_words_of_a_page_are_read_without_scripts_or_styles(port):
+    text = checker(port).read_text("http://pages.test/article")
+    assert text == "Home | About\nOn trust\nTests build trust.\nCafé notes"
+
+
+def test_plain_text_is_read_as_it_is(port):
+    assert checker(port).read_text("http://pages.test/notes.txt") == "Plain words, äiti"
+
+
+@pytest.mark.parametrize(
+    ("path", "reason"),
+    [
+        ("/to-inside", "not on the public internet"),
+        ("/gone", "gone (answer 404)"),
+        ("/login", "asks for a login"),
+        ("/paper.pdf", "gives a file"),
+    ],
+)
+def test_pages_that_cannot_be_read_say_why(port, path, reason):
+    with pytest.raises(PageUnreachable, match=re.escape(reason)):
+        checker(port).read_text(f"http://pages.test{path}")
+
+
+def test_reading_through_recent_checks_is_never_remembered(port):
+    pages = RecentChecks(checker(port))
+    assert pages.read_text("http://pages.test/article").startswith("Home")
+
+
+def test_page_text_survives_broken_markup():
+    assert page_text(b"<p>Hello <b>world</p><div>again", None) == "Hello world\nagain"
+    assert page_text(b"<meta charset='latin-1'><p>Caf\xe9</p>") == "Caf\xe9"

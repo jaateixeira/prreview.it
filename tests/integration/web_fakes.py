@@ -22,6 +22,7 @@ from previewit.adapters.persistence.memory import (
     InMemoryTenancyRepository,
     InMemoryUserRepository,
 )
+from previewit.adapters.persistence.memory_ai_reviews import InMemoryAiReviewRepository
 from previewit.adapters.persistence.memory_calls import InMemoryCallRepository
 from previewit.adapters.persistence.memory_prepared import InMemoryPreparedRequestRepository
 from previewit.adapters.persistence.memory_reviews import InMemoryReviewRepository
@@ -29,8 +30,9 @@ from previewit.adapters.persistence.memory_rounds import InMemoryRoundRepository
 from previewit.adapters.persistence.memory_rubrics import InMemoryRubricRepository
 from previewit.adapters.settings import Settings
 from previewit.adapters.web.app import build_app
+from previewit.application.ai_reviews import AiReviewsService
 from previewit.application.allocation import StrategyRegistry
-from previewit.application.artifacts import ArtifactRegistry
+from previewit.application.artifacts import ArtifactRegistry, PluginServices
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService
 from previewit.application.criteria import CriterionRegistry
@@ -55,6 +57,8 @@ from previewit.plugins.criteria import (
 from previewit.plugins.pdf import PdfArtifact
 from previewit.plugins.text import TextArtifact
 from previewit.plugins.webpage import WebPageArtifact
+from tests.unit.test_ai_models import CHEAP, LOCAL
+from tests.unit.test_ai_reviews_service import SONNET, TINY, FakeCatalog, FakeWriter, Jobs
 from tests.unit.test_webpage_plugin import ESSAY, FakePageChecker
 
 
@@ -111,6 +115,9 @@ class Harness:
     base_url: str
     pages: FakePageChecker
     prepared_repo: InMemoryPreparedRequestRepository
+    ai_writer: FakeWriter
+    ai_jobs: Jobs
+    ai_repo: InMemoryAiReviewRepository
 
     def new_client(self) -> TestClient:
         """Another browser: same app, its own cookies."""
@@ -123,11 +130,13 @@ def make_harness(
     base_url: str = "http://testserver",
     policy: VerificationPolicy = DEFAULT_POLICY,
     aliases: tuple[str, ...] = (),
+    with_ai: bool = True,
 ) -> Harness:
     ids = count(1)
     prepared_repo = InMemoryPreparedRequestRepository()
-    pages = FakePageChecker({ESSAY.address: ESSAY})
-    web = WebPageArtifact(pages)
+    pages = FakePageChecker({ESSAY.address: ESSAY}, texts={ESSAY.address: "On testing and trust."})
+    web = WebPageArtifact()
+    web.connect(PluginServices(pages=pages, reader=pages))
     users = InMemoryUserRepository()
     auth = AuthService(
         users,
@@ -203,6 +212,13 @@ def make_harness(
         clock,
     )
     quick = QuickReviewService(tenancy, calls, rounds, invitations, artifacts, users, clock)
+    ai_repo, ai_writer, ai_jobs = InMemoryAiReviewRepository(), FakeWriter(), Jobs()
+    ai = AiReviewsService(
+        ai_repo, FakeCatalog([LOCAL, SONNET, CHEAP, TINY]), ai_writer, ai_jobs, calls, artifacts,
+        users, UnlimitedEntitlements(), outbox, base_url=base_url, ids=lambda: f"a{next(ids)}",
+        now=clock,
+    )  # fmt: skip
+    ai_jobs.service = ai
     settings = Settings(
         secret_key="test-secret", base_url=base_url, verification_policy=policy, aliases=aliases
     )
@@ -212,9 +228,13 @@ def make_harness(
         prepared=PreparedRequestsService(
             prepared_repo, lambda: secrets.token_urlsafe(32), clock
         ),
+        ai=ai if with_ai else None,
     )  # fmt: skip
     client = TestClient(app, base_url=base_url, follow_redirects=False)
-    return Harness(client, auth, outbox, clock, app, base_url, pages, prepared_repo)
+    return Harness(
+        client, auth, outbox, clock, app, base_url, pages, prepared_repo, ai_writer, ai_jobs,
+        ai_repo,
+    )  # fmt: skip
 
 
 def make_client(

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import ipaddress
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 from urllib.parse import urlsplit, urlunsplit
 
 MAX_ADDRESS_LENGTH = 2000
@@ -43,6 +43,15 @@ class PageCheck:
 class PageChecker(Protocol):
     def check(self, address: str) -> PageCheck:
         """Reach the page and read its preview. Raise PageUnreachable with the reason."""
+        ...
+
+
+@runtime_checkable
+class PageReader(Protocol):
+    """Reads the words of a public page, for an AI review (ADR 0025)."""
+
+    def read_text(self, address: str) -> str:
+        """The page's visible text. Raise PageUnreachable with the reason."""
         ...
 
 

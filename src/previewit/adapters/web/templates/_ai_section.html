@@ -1,0 +1,12 @@
+<section class="card ai-reviews" id="ai-reviews">
+  <h2>AI reviews</h2>
+  <p class="hint">Only the author and the organizers see AI reviews. Reviewers never do.</p>
+  {% include "_ai_list.html" %}
+  <div id="ai-ask">
+    {% if ask %}{% include "_ai_ask.html" %}
+    {% else %}
+    <button class="btn btn-secondary" type="button" hx-get="/submissions/{{ sid }}/ai/ask"
+      hx-target="#ai-ask">Ask AI models to review it</button>
+    {% endif %}
+  </div>
+</section>

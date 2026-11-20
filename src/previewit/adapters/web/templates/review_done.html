@@ -30,6 +30,20 @@
     {% endif %}
   </div>
 
+  {% if ai_started or ai_error %}
+  <div class="card">
+    <h2>AI reviews</h2>
+    {% if ai_started %}
+    <p>{{ ai_started | map(attribute='model_name') | join(', ') }}
+      {{ 'is' if ai_started | length == 1 else 'are' }} reading your work. The reviews appear on
+      <a href="/submissions/{{ result.submission_id }}#ai-reviews">your work's page</a> within a few
+      minutes, and Previewit emails you. Only you see them.</p>
+    {% endif %}
+    {% if ai_error %}<p class="error" role="alert">The AI reviews could not start: {{ ai_error }}
+      You can ask again on <a href="/submissions/{{ result.submission_id }}#ai-reviews">your work's page</a>.</p>{% endif %}
+  </div>
+  {% endif %}
+
   <p class="actions">
     <a class="btn" href="/calls/{{ result.call_id }}/rounds">Follow the reviews</a>
     <a class="btn btn-secondary" href="/review/new">Request another</a>

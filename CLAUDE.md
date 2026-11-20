@@ -17,7 +17,8 @@ Open-source peer-review platform for ANY organization (education is one preset).
 - Hosted-first: the hosted site (`peerview.it`; `peereview.it` leads to it, ADR 0021) is the product. Optimise sign-up to first review round (target: under 10 minutes).
 - Review by link is a core flow: request or give a review from a shared link with minimal sign-up.
 - Free tier: 50 MB of storage and 100 shares per user. The organizer pays above that; students and reviewers never pay. Limits go through the `Entitlements` port, never `if plan == ...`.
-- Year-1 scope: Education preset; text, PDF and web pages (ADR 0022). No academic-venue features, code review or extra plugins.
+- AI reviews (ADR 0025): Previewit pays only for the small models on its own Ollama server. A person's key for any other model is used for one request and never stored, logged or shown. Only the author and the organizers see AI reviews; reviewers never do.
+- Year-1 scope: Education preset; text, PDF and web pages (ADR 0022); AI reviews of them (ADR 0025). No academic-venue features, code review or extra plugins.
 - Self-hosting is expert-only and unsupported: Debian Linux (stable) and PostgreSQL. Do not add Docker, installers, other OS support or a small-server mode. Never make the code slower or heavier on purpose.
 - Keep the developer setup easy (`make install`; SQLite for dev and tests).
 

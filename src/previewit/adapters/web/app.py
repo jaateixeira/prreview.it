@@ -20,6 +20,7 @@ from previewit.adapters.auth.base import ExternalProvider
 from previewit.adapters.mcp import McpServer
 from previewit.adapters.settings import Settings
 from previewit.adapters.web import local_time
+from previewit.adapters.web.ai_routes import build_ai_router, usd
 from previewit.adapters.web.auth_routes import build_auth_router
 from previewit.adapters.web.calls_routes import build_calls_router
 from previewit.adapters.web.docs_routes import build_docs_router
@@ -34,6 +35,7 @@ from previewit.adapters.web.rounds_routes import build_rounds_router
 from previewit.adapters.web.rubrics_routes import build_rubrics_router
 from previewit.adapters.web.session import SESSION_COOKIE, SessionCodec
 from previewit.adapters.web.tenancy_routes import LoginRequired, build_tenancy_router
+from previewit.application.ai_reviews import AiReviewsService
 from previewit.application.auth import AuthService
 from previewit.application.calls import CallsService, InvalidShare
 from previewit.application.invitations import (
@@ -55,6 +57,7 @@ from previewit.application.tenancy import (
 )
 from previewit.application.verification import VerificationService
 from previewit.application.web_pages import PageChecker
+from previewit.domain.ai_models import flag
 from previewit.domain.identity import Provider
 
 HERE = Path(__file__).parent
@@ -93,6 +96,7 @@ def build_app(
     pages: PageChecker,
     prepared: PreparedRequestsService,
     version: str = "dev",
+    ai: AiReviewsService | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -106,6 +110,9 @@ def build_app(
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.globals["source_url"] = SOURCE_URL
     templates.env.globals["site_host"] = settings.host
+    templates.env.globals["ai_on"] = ai is not None  # AI reviews (ADR 0025)
+    templates.env.globals["flag"] = flag
+    templates.env.filters["usd"] = usd
     local_time.install(templates.env)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     codec = SessionCodec(settings.secret_key)
@@ -190,8 +197,13 @@ def build_app(
             pages=pages,
             prepared=prepared,
             visitors=RateLimiter(10, 600),  # forms kept per client address (ADR 0024)
+            ai=ai,
         )
     )
+    if ai is not None:
+        app.include_router(
+            build_ai_router(ai=ai, kit=kit, visitors=RateLimiter(20, 600))  # per client address
+        )
     mcp = McpServer(
         prepared=prepared,
         origin=settings.origin,

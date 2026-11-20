@@ -6,11 +6,15 @@ import os
 import secrets
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
 from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import FastAPI
 from loguru import logger
 
+from previewit.adapters.ai.catalog import Catalogue, LocalModels, Service, load_catalogue
+from previewit.adapters.ai.jobs import ThreadedAiJobs
+from previewit.adapters.ai.writers import HttpAiWriter
 from previewit.adapters.auth.passwords import Argon2Hasher
 from previewit.adapters.auth.registry import build_providers
 from previewit.adapters.cache import ValkeyCache, make_cache
@@ -26,6 +30,7 @@ from previewit.adapters.persistence.sql import (
     SqlTenancyRepository,
     SqlUserRepository,
 )
+from previewit.adapters.persistence.sql_ai_reviews import SqlAiReviewRepository
 from previewit.adapters.persistence.sql_calls import SqlCallRepository
 from previewit.adapters.persistence.sql_prepared import SqlPreparedRequestRepository
 from previewit.adapters.persistence.sql_reviews import SqlReviewRepository
@@ -39,6 +44,7 @@ from previewit.adapters.plugins import (
 from previewit.adapters.settings import Settings, load_settings
 from previewit.adapters.web.app import build_app
 from previewit.adapters.web_pages import HttpPageChecker, RecentChecks
+from previewit.application.ai_reviews import AiReviewsService, AiWriter, ModelCatalog
 from previewit.application.allocation import StrategyRegistry
 from previewit.application.artifacts import ArtifactRegistry, PluginServices, connect_plugins
 from previewit.application.auth import AuthService
@@ -53,7 +59,7 @@ from previewit.application.rounds import RoundsService
 from previewit.application.rubrics import RubricsService
 from previewit.application.tenancy import TenancyService
 from previewit.application.verification import VerificationService
-from previewit.application.web_pages import PageChecker
+from previewit.application.web_pages import PageChecker, PageReader
 
 
 def create_app() -> FastAPI:
@@ -80,7 +86,8 @@ def create_app() -> FastAPI:
     mailer = build_mailer(settings)
     artifact_types = discover_artifact_types()
     pages = build_page_checker(settings)
-    connect_plugins(artifact_types, PluginServices(pages=pages))
+    reader = pages if isinstance(pages, PageReader) else None
+    connect_plugins(artifact_types, PluginServices(pages=pages, reader=reader))
     verification = VerificationService(
         users,
         SqlEmailTokenRepository(engine),
@@ -167,6 +174,32 @@ def create_app() -> FastAPI:
         lambda: uuid.uuid4().hex,
         lambda: datetime.now(UTC),
     )
+    ai = None
+    if settings.ai_enabled:
+        services, catalogue = build_ai_catalogue(settings)
+        jobs = ThreadedAiJobs()
+        ai = AiReviewsService(
+            SqlAiReviewRepository(engine),
+            catalogue,
+            build_ai_writer(settings, services),
+            jobs,
+            calls,
+            registry,
+            users,
+            UnlimitedEntitlements(),
+            mailer,
+            base_url=settings.base_url,
+            ids=lambda: uuid.uuid4().hex,
+            now=lambda: datetime.now(UTC),
+            margin=Decimal(settings.ai_margin_percent) / 100,
+        )
+        jobs.bind(ai.run)
+        ai.recover()  # what was queued when Previewit stopped
+        logger.info(
+            "AI reviews: models from {}; free models from {}",
+            ", ".join(s.name for s in services.values()),
+            settings.ai_ollama_url or "nowhere (no [ai] ollama_url)",
+        )
     mailer_mode = "SMTP" if isinstance(mailer, SmtpMailer) else "written to the log (development)"
     show_startup(
         startup_panel(
@@ -198,6 +231,31 @@ def create_app() -> FastAPI:
             lambda: datetime.now(UTC),
         ),
         version=_version(),
+        ai=ai,
+    )
+
+
+def build_ai_catalogue(settings: Settings) -> tuple[dict[str, Service], ModelCatalog]:
+    """The models on offer (ADR 0025): the catalogue file, and the free models on Previewit's
+    own Ollama server when one is configured."""
+    services, cards = load_catalogue()
+    local = None
+    if settings.ai_ollama_url:
+        local = LocalModels(
+            settings.ai_ollama_url,
+            place=settings.ai_local_place,
+            country=settings.ai_local_country,
+            context=settings.ai_local_context,
+            only=settings.ai_local_models,
+        )
+    return services, Catalogue(cards, local)
+
+
+def build_ai_writer(settings: Settings, services: dict[str, Service]) -> AiWriter:
+    return HttpAiWriter(
+        services,
+        ollama_url=settings.ai_ollama_url,
+        user_agent=f"PreviewitAiReview/1.0 (+{settings.origin})",
     )
 
 

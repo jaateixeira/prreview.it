@@ -125,6 +125,16 @@ def test_a_visitors_form_and_file_are_kept_for_one_hour(w: World):
     assert w.repo.count() == 0
 
 
+def test_a_visitors_choice_of_ai_models_is_kept_but_never_a_key(w: World):
+    token = w.s.keep_for_visitor(
+        title="Essay", text="Hello", web_address="", reviewers=["ana@x.fi"], message="", due="",
+        ai_models=["local/qwen3:8b", "anthropic/claude-sonnet-5-5", "local/qwen3:8b", "a/b", "c/d"],
+    )  # fmt: skip
+    kept = w.s.open(token)
+    assert kept is not None
+    assert kept.ai_models == ("local/qwen3:8b", "anthropic/claude-sonnet-5-5", "a/b")  # three
+
+
 def test_an_assistants_request_is_marked_as_such(w: World):
     _, prepared = w.s.prepare(text="x")
     assert prepared.source == ASSISTANT and prepared.file_content is None

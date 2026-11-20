@@ -1,0 +1,14 @@
+{% if ai_on %}
+<fieldset class="card step ai-step">
+  <legend>Feedback from AI models too? <small>(optional)</small></legend>
+  <p>While your reviewers read, AI models can review your work within minutes. Only you see
+    their reviews; your reviewers never do. Nothing goes to any model until you send this
+    request.</p>
+  {% if kept_ai_models %}<p class="notice" role="status">Your choice of models was kept. Previewit
+    never keeps keys, so type yours again.</p>{% endif %}
+  <button class="btn btn-secondary" type="button" hx-post="/review/ai/suggest"
+    hx-encoding="multipart/form-data" hx-target="#ai-choices-slot" hx-swap="innerHTML"
+    hx-params="not emails_file">Yes, suggest AI models</button>
+  <div id="ai-choices-slot" aria-live="polite">{% if picks or ai_error %}{% include "_ai_choices.html" %}{% endif %}</div>
+</fieldset>
+{% endif %}

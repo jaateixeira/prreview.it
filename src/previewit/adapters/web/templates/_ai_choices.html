@@ -1,0 +1,28 @@
+<div class="ai-choices" id="ai-choices-list">
+  {% if ai_error %}<p class="error" role="alert">{{ ai_error }}</p>{% endif %}
+  {% if picks %}
+  <p class="hint">Choose up to {{ max_ai }}. Prices are for one review, in US dollars.
+    {% if not exact %}Previewit reads the page once you are signed in; until then the prices
+    assume a long article.{% endif %}</p>
+  <ul class="ai-models">
+    {% for s in picks %}{% include "_ai_model.html" %}{% endfor %}
+  </ul>
+  {% if keys_shown %}
+  <div class="ai-keys">
+    <p class="hint">Your keys are used for this one request and never stored.</p>
+    {% with keys = keys_shown %}{% include "_ai_keys.html" %}{% endwith %}
+  </div>
+  {% endif %}
+  {% if more %}
+  <details class="ai-more">
+    <summary>See more models ({{ more | length }})</summary>
+    <ul class="ai-models">
+      {% for s in more %}{% include "_ai_model.html" %}{% endfor %}
+    </ul>
+    {% if keys_more %}
+    <div class="ai-keys">{% with keys = keys_more %}{% include "_ai_keys.html" %}{% endwith %}</div>
+    {% endif %}
+  </details>
+  {% endif %}
+  {% endif %}
+</div>

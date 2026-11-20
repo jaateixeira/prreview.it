@@ -433,3 +433,37 @@ annotations = Table(
     ),
     Index("ix_annotations_review_id", "review_id"),
 )
+
+
+# --- AI reviews (ADR 0025): written by a model, seen by the author and organizers only ----------
+# The person's key is never stored: not here, not anywhere.
+
+ai_reviews = Table(
+    "ai_reviews",
+    metadata,
+    Column("id", String(64), primary_key=True),
+    Column("org_id", String(64), nullable=False),
+    Column("submission_id", String(64), nullable=False),
+    Column("revision", Integer, nullable=False),
+    Column("model_key", String(200), nullable=False),
+    Column("model_name", String(200), nullable=False),
+    Column("hosted_in", String(8), nullable=False),
+    Column("hosting", String(200), nullable=False),
+    Column("payer", String(16), nullable=False),  # free | own_key
+    Column("requested_by", String(64), nullable=False),
+    Column("requested_at", DateTime(timezone=True), nullable=False),
+    Column("note", Text, nullable=False),
+    Column("status", String(16), nullable=False),  # waiting | writing | done | failed
+    Column("finished_at", DateTime(timezone=True), nullable=True),
+    Column("text", Text, nullable=False),
+    Column("problem", Text, nullable=False),
+    Column("input_tokens", Integer, nullable=False),
+    Column("output_tokens", Integer, nullable=False),
+    Column("cost_microusd", Integer, nullable=False),  # millionths of a US dollar
+    ForeignKeyConstraint(
+        ["submission_id", "org_id"], ["submissions.id", "submissions.org_id"], ondelete="CASCADE"
+    ),
+    Index("ix_ai_reviews_submission_id", "submission_id"),
+    Index("ix_ai_reviews_requested_by", "requested_by", "requested_at"),
+    Index("ix_ai_reviews_status", "status"),
+)

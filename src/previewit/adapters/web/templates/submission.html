@@ -26,6 +26,13 @@
     <button class="btn" type="submit">Save revision</button>
   </form>
   {% endif %}
+  {% if ai_on and view.sees_ai_reviews %}
+  <section class="card ai-reviews" id="ai-reviews" hx-get="/submissions/{{ sub.id }}/ai"
+    hx-trigger="load" hx-swap="outerHTML">
+    <h2>AI reviews</h2>
+    <p>Loading…</p>
+  </section>
+  {% endif %}
   {% if view.can_share %}{% with base = '/submissions/' ~ sub.id %}{% include "_share_box.html" %}{% endwith %}{% endif %}
 </section>
 {% endblock %}

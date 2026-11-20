@@ -22,9 +22,13 @@ from previewit.plugins.webpage import WebPageArtifact
 class FakePageChecker:
     """Pages by address; a string is the reason the page cannot be reached."""
 
-    def __init__(self, pages: dict[str, PageCheck | str] | None = None) -> None:
+    def __init__(
+        self, pages: dict[str, PageCheck | str] | None = None, texts: dict[str, str] | None = None
+    ) -> None:
         self.pages = pages if pages is not None else {}
+        self.texts = texts if texts is not None else {}  # what read_text finds (ADR 0025)
         self.checked: list[str] = []
+        self.read: list[str] = []
 
     def check(self, address: str) -> PageCheck:
         url = normalise_address(address)
@@ -35,6 +39,16 @@ class FakePageChecker:
         if isinstance(found, str):
             raise PageUnreachable(found)
         return found
+
+    def read_text(self, address: str) -> str:
+        url = normalise_address(address)
+        self.read.append(url)
+        found = self.pages.get(url)
+        if isinstance(found, str):
+            raise PageUnreachable(found)
+        if url not in self.texts:
+            raise PageUnreachable("Previewit could not read that page.")
+        return self.texts[url]
 
 
 ESSAY = PageCheck(

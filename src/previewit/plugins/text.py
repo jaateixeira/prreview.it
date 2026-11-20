@@ -27,6 +27,9 @@ class TextArtifact:
             raise ArtifactError("That text is too long (limit: 400 kB).")
         return Artifact(self.key, "text/plain; charset=utf-8", data)
 
+    def text_of(self, artifact: Artifact) -> str:
+        return artifact.content.decode("utf-8")
+
     def render_html(self, artifact: Artifact, raw_url: str) -> str:
         return f'<pre class="artifact-text">{escape(artifact.content.decode("utf-8"))}</pre>'
 

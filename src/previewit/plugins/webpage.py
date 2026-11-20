@@ -16,6 +16,7 @@ from previewit.application.artifacts import ArtifactError, PluginServices, Uploa
 from previewit.application.web_pages import (
     MAX_ADDRESS_LENGTH,
     PageChecker,
+    PageReader,
     PageUnreachable,
     host_of,
 )
@@ -34,9 +35,24 @@ class WebPageArtifact:
 
     def __init__(self, checker: PageChecker | None = None) -> None:
         self._checker = checker
+        self._reader: PageReader | None = None
 
     def connect(self, services: PluginServices) -> None:
         self._checker = services.pages
+        self._reader = services.reader
+
+    def text_of(self, artifact: Artifact) -> str:
+        """The page's text as it is now: Previewit keeps no copy (ADR 0025)."""
+        if self._reader is None:
+            raise ArtifactError("This Previewit cannot read web pages for AI reviews.")
+        address = _record(artifact).get("final_address") or _record(artifact).get("address", "")
+        try:
+            text = self._reader.read_text(address)
+        except PageUnreachable as problem:
+            raise ArtifactError(str(problem)) from None
+        if not text.strip():
+            raise ArtifactError("The page has no text to read.")
+        return text
 
     def ingest(self, upload: Upload) -> Artifact:
         address = (upload.url or upload.text or "").strip()

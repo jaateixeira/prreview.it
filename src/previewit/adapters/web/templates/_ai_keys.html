@@ -1,0 +1,6 @@
+{% for k in keys %}
+<label class="field">{{ k.label }} <small>(for {{ k['for'] | join(', ') }}.
+  <a href="{{ k.url }}" target="_blank" rel="noopener noreferrer">Get one</a>)</small>
+  <input type="password" name="ai_key_{{ k.service }}" autocomplete="off" spellcheck="false" maxlength="512">
+</label>
+{% endfor %}

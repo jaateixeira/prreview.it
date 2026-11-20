@@ -243,3 +243,38 @@ def test_a_wrong_alias_stops_the_start_and_says_why(tmp_path: Path, aliases: str
     )
     with pytest.raises(ConfigError, match=problem):
         load_settings({"PREVIEWIT_CONFIG": str(path)}, search=[])
+
+
+def test_the_ai_section_sets_the_free_model_server(tmp_path: Path):  # ADR 0025
+    path = write(
+        tmp_path,
+        """
+        [ai]
+        ollama_url = "http://10.0.0.7:11434/"
+        local_place = "Jyväskylä, Finland"
+        local_country = "fi"
+        local_context = 16384
+        local_models = ["qwen3:8b", "gemma3:12b"]
+        margin_percent = 25
+        """,
+    )
+    s = load_settings({"PREVIEWIT_CONFIG": str(path)})
+    assert s.ai_enabled and s.ai_ollama_url == "http://10.0.0.7:11434"
+    assert (s.ai_local_place, s.ai_local_country) == ("Jyväskylä, Finland", "FI")
+    assert s.ai_local_context == 16384 and s.ai_local_models == ("qwen3:8b", "gemma3:12b")
+    assert s.ai_margin_percent == 25
+    off = write(tmp_path, "[ai]\nenabled = false\n", name="off.toml")
+    assert not load_settings({"PREVIEWIT_CONFIG": str(off)}).ai_enabled
+    assert not load_settings({"PREVIEWIT_AI_ENABLED": "false"}, search=[]).ai_enabled
+
+
+def test_ai_settings_of_the_wrong_kind_are_errors(tmp_path: Path):
+    for text in (
+        '[ai]\nenabled = "yes"\n',
+        '[ai]\nlocal_context = "big"\n',
+        "[ai]\nlocal_models = 3\n",
+    ):
+        with pytest.raises(ConfigError, match="ai"):
+            load_settings({"PREVIEWIT_CONFIG": str(write(tmp_path, text))})
+    with pytest.raises(ConfigError, match="AI_MARGIN_PERCENT"):
+        load_settings({"PREVIEWIT_AI_MARGIN_PERCENT": "-5"}, search=[])

@@ -32,6 +32,7 @@ MAX_FILES_WAITING = 200  # files kept for visitors, site-wide: 2 GB at the very 
 MAX_TITLE = 200
 MAX_MESSAGE = 2000
 MAX_PENDING = 10_000  # waiting prepared requests, site-wide
+MAX_AI_MODELS = 3  # AI models a visitor may have chosen (ADR 0025)
 
 _TIME = re.compile(r"[0-2]\d:[0-5]\d")
 
@@ -57,6 +58,7 @@ class PreparedRequest:
     file_name: str = ""
     file_content: bytes | None = None  # a visitor's file, kept for an hour
     due_time: str = ""  # "HH:MM" when a visitor chose another time than 16:00
+    ai_models: tuple[str, ...] = ()  # AI models a visitor chose (ADR 0025); keys are never kept
 
 
 class PreparedRequestRepository(Protocol):
@@ -133,6 +135,7 @@ class PreparedRequestsService:
         due_time: str = "",
         file_name: str = "",
         file_content: bytes | None = None,
+        ai_models: Sequence[str] = (),
     ) -> str:
         """Keep a form filled in before signing in, file included, for an hour (ADR 0024).
         The form itself has checked what is cheap to check; the rest is checked on sending."""
@@ -146,6 +149,7 @@ class PreparedRequestsService:
             _message(message), self._check_due(due.strip(), now), now,
             now + timedelta(hours=VISITOR_HOURS), VISITOR, (file_name or "")[:255],
             file_content, due_time.strip() if _TIME.fullmatch(due_time.strip()) else "",
+            tuple(dict.fromkeys(m.strip()[:200] for m in ai_models if m.strip()))[:MAX_AI_MODELS],
         )  # fmt: skip
         return self._keep(prepared)
 

@@ -1,0 +1,10 @@
+<form hx-post="/submissions/{{ sid }}/ai" hx-target="#ai-reviews" hx-swap="outerHTML" class="form ai-ask">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  {% include "_ai_choices.html" %}
+  {% if picks %}
+  <label class="field">A few words for the models <small>(optional: what should they look at?)</small>
+    <textarea name="ai_note" rows="2" maxlength="2000"></textarea>
+  </label>
+  <button class="btn" type="submit">Ask them</button>
+  {% endif %}
+</form>
